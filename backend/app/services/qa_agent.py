@@ -1,7 +1,5 @@
-from browser_use.llm import ChatAnthropic
-from browser_use import Agent, BrowserConfig, BrowserSession, Browser, Controller
-from browser_use.agent.views import ActionResult
-from browser_use.browser.context import BrowserContext
+from browser_use import Agent, Browser, Controller
+from langchain_anthropic import ChatAnthropic
 import pyperclip
 from app.core.config import get_settings
 
@@ -34,55 +32,51 @@ class QaAgent:
         Returns:
             Test execution results
         """
-        # Build precondition for login if credentials are provided
-        sensitive_data = {}
+        # Build task with credentials embedded if provided
         if self.email and self.password:
-            sensitive_data = {
-                'user_email': self.email,
-                'user_password': self.password
-            }
-            precondition = f"""
-                Go to {self.base_url} and sign in with user_email and user_password if they exist.
-            """
+            task_with_context = f"""
+Go to {self.base_url} and sign in with the following credentials:
+- Email: {self.email}
+- Password: {self.password}
+
+Then execute the following test case:
+{test_case}
+"""
         else:
-            precondition = f"""
-                Go to {self.base_url}.
-            """
+            task_with_context = f"""
+Go to {self.base_url}
 
-        test_case_with_precondition = f"{precondition}\n{test_case}"
+Then execute the following test case:
+{test_case}
+"""
 
-        # Browser configuration
-        config = BrowserConfig(
-            headless=headless,
-            disable_security=True,
+        # Create browser instance
+        browser = Browser(
+            config={
+                "headless": headless,
+                "disable_security": True,
+            }
         )
-        browser = Browser(config=config)
-        browser_session = BrowserSession(
-            headless=headless,
-            viewport={'width': 964, 'height': 647},
-        )
+
+        # Create controller for custom actions
         controller = Controller()
 
         # Custom clipboard actions
-        @controller.registry.action('Copy text to clipboard')
+        @controller.action('Copy text to clipboard')
         def copy_to_clipboard(text: str):
             pyperclip.copy(text)
-            return ActionResult(extracted_content=text)
+            return f"Copied to clipboard: {text}"
 
-        @controller.registry.action('Paste text from clipboard')
-        async def paste_from_clipboard(browser: BrowserContext):
+        @controller.action('Paste text from clipboard')
+        async def paste_from_clipboard():
             text = pyperclip.paste()
-            page = await browser.get_current_page()
-            await page.keyboard.type(text)
-            return ActionResult(extracted_content=text)
+            return f"Pasted from clipboard: {text}"
 
         # Create and run agent
         agent = Agent(
-            browser=browser,
-            task=test_case_with_precondition,
+            task=task_with_context,
             llm=self.llm,
-            browser_session=browser_session,
-            sensitive_data=sensitive_data,
+            browser=browser,
             controller=controller,
         )
 

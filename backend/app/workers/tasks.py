@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+import asyncio
 import redis
 from app.core.celery_app import celery_app
 from app.core.config import get_settings
@@ -100,7 +101,7 @@ def execute_test_cases_task(
         update_job_status(job_id, "processing", 30, "Starting test execution")
 
         # Run tests (headless in production)
-        result = agent.run_agent(test_case_text, headless=True)
+        result = asyncio.run(agent.run_agent(test_case_text, headless=True))
 
         update_job_status(job_id, "processing", 80, "Generating test report")
 

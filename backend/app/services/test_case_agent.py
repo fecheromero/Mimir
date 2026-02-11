@@ -11,7 +11,7 @@ class TestCaseAgent:
         self.client = Anthropic(api_key=anthropic_api_key or settings.anthropic_api_key)
         self.model = model or settings.test_case_agent_model
 
-    async def generate_test_case(self, ticket_id: str, description: str) -> str:
+    def generate_test_case(self, ticket_id: str, description: str) -> str:
         """
         Generate test case steps from a ticket description.
 
