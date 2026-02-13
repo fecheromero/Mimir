@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TestCaseGenerator from '../components/TestCaseGenerator'
 import TestCaseUploader from '../components/TestCaseUploader'
+import ReplayUploader from '../components/ReplayUploader'
 import { testCasesApi } from '../services/api'
 
 export default function Dashboard() {
@@ -12,7 +13,6 @@ export default function Dashboard() {
     try {
       setLoading(true)
       const response = await testCasesApi.generate(
-        data.ticketId,
         data.description
       )
 
@@ -55,6 +55,27 @@ export default function Dashboard() {
     }
   }
 
+  const handleReplay = async (data) => {
+    try {
+      setLoading(true)
+      const response = await testCasesApi.uploadAndReplay(
+        data.file,
+        data.userEmail,
+        data.userPassword
+      )
+
+      // Navigate to job results page
+      navigate(`/jobs/${response.job_id}`, {
+        state: { mode: 'replay' }
+      })
+    } catch (error) {
+      console.error('Error executing replay:', error)
+      alert('Failed to execute replay. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
@@ -81,6 +102,19 @@ export default function Dashboard() {
 
       {/* Upload existing test cases */}
       <TestCaseUploader onUpload={handleUpload} loading={loading} />
+
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-gray-50 text-gray-500">OR</span>
+        </div>
+      </div>
+
+      {/* Execute replay actions */}
+      <ReplayUploader onReplay={handleReplay} loading={loading} />
     </div>
   )
 }

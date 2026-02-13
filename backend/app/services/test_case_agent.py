@@ -1,5 +1,5 @@
-from anthropic import Anthropic
 from app.core.config import get_settings
+from app.core.llm_factory import get_llm_for_test_generation
 
 settings = get_settings()
 
@@ -7,9 +7,9 @@ settings = get_settings()
 class TestCaseAgent:
     """Use LLM model to generate test cases based on ticket descriptions."""
 
-    def __init__(self, anthropic_api_key: str = None, model: str = None):
-        self.client = Anthropic(api_key=anthropic_api_key or settings.anthropic_api_key)
-        self.model = model or settings.test_case_agent_model
+    def __init__(self):
+        self.client = get_llm_for_test_generation()
+        self.model = settings.test_case_agent_model
 
     def generate_test_case(self, ticket_id: str, description: str) -> str:
         """

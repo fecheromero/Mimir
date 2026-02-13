@@ -110,10 +110,11 @@ async def get_results(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = redis_client.hget(job_key, "status").decode('utf-8')
-    if status != "completed":
+    # Allow retrieving results for both completed and failed jobs
+    if status not in ["completed", "failed"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Job is not completed yet. Current status: {status}"
+            detail=f"Job has not finished yet. Current status: {status}"
         )
 
     # Load results from storage

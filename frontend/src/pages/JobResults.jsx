@@ -19,6 +19,13 @@ export default function JobResults() {
   const mode = location.state?.mode || 'execute'
   const generationData = location.state || {}
 
+  // Reset state when jobId changes (navigating to a new job)
+  useEffect(() => {
+    setStatus(null)
+    setTestCases(null)
+    setResults(null)
+  }, [jobId])
+
   // Poll job status
   useEffect(() => {
     const pollStatus = async () => {
@@ -32,10 +39,15 @@ export default function JobResults() {
           setTestCases(testCasesData.test_cases)
         }
 
-        // If execution is complete and we haven't loaded results yet
-        if (statusData.status === 'completed' && mode === 'execute' && !results) {
-          const resultsData = await jobsApi.getResults(jobId)
-          setResults(resultsData.results)
+        // If execution/replay is complete/failed and we haven't loaded results yet
+        if ((statusData.status === 'completed' || statusData.status === 'failed') && (mode === 'execute' || mode === 'replay') && !results) {
+          try {
+            const resultsData = await jobsApi.getResults(jobId)
+            setResults(resultsData.results)
+          } catch (error) {
+            // Results might not be available for some failures
+            console.error('Could not load results:', error)
+          }
         }
       } catch (error) {
         console.error('Error fetching job status:', error)

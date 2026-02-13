@@ -1,17 +1,37 @@
-import { useState } from 'react'
-import { FileText, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FileText, Loader2, X } from 'lucide-react'
+
+const STORAGE_KEY = 'mimir_ticket_description'
 
 export default function TestCaseGenerator({ onGenerate, loading }) {
-  const [ticketId, setTicketId] = useState('')
   const [description, setDescription] = useState('')
   const [url, setUrl] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [userPassword, setUserPassword] = useState('')
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      setDescription(saved)
+    }
+  }, [])
+
+  // Save to localStorage whenever description changes
+  useEffect(() => {
+    if (description) {
+      localStorage.setItem(STORAGE_KEY, description)
+    }
+  }, [description])
+
+  const handleClearDescription = () => {
+    setDescription('')
+    localStorage.removeItem(STORAGE_KEY)
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     onGenerate({
-      ticketId,
       description,
       url,
       userEmail: userEmail || null,
@@ -28,23 +48,21 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ticket ID
-          </label>
-          <input
-            type="text"
-            value={ticketId}
-            onChange={(e) => setTicketId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g., TICKET-123"
-            required
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ticket Description (Markdown supported)
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Ticket Description (Markdown supported)
+            </label>
+            {description && (
+              <button
+                type="button"
+                onClick={handleClearDescription}
+                className="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Clear
+              </button>
+            )}
+          </div>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -53,6 +71,11 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
             placeholder="Paste ticket description from Notion..."
             required
           />
+          {description && (
+            <p className="text-xs text-gray-500 mt-1">
+              ✓ Saved locally - will be restored if you refresh the page
+            </p>
+          )}
         </div>
 
         <div>

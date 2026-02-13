@@ -10,9 +10,8 @@ const api = axios.create({
 })
 
 export const testCasesApi = {
-  generate: async (ticketId, ticketDescription) => {
+  generate: async (ticketDescription) => {
     const response = await api.post('/test-cases/generate', {
-      ticket_id: ticketId,
       ticket_description: ticketDescription,
     })
     return response.data
@@ -39,6 +38,41 @@ export const testCasesApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    })
+    return response.data
+  },
+
+  uploadAndReplay: async (file, userEmail = null, userPassword = null) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (userEmail) formData.append('user_email', userEmail)
+    if (userPassword) formData.append('user_password', userPassword)
+
+    const response = await api.post('/test-cases/upload-and-replay', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
+  replayActions: async (
+    actions,
+    url,
+    userEmail = null,
+    userPassword = null,
+    testCaseText = null,
+    testExpectations = null,
+    expectedOutcome = null
+  ) => {
+    const response = await api.post('/test-cases/replay-actions', {
+      actions,
+      url,
+      user_email: userEmail,
+      user_password: userPassword,
+      test_case_text: testCaseText,
+      test_expectations: testExpectations,
+      expected_outcome: expectedOutcome,
     })
     return response.data
   },
