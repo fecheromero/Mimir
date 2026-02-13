@@ -40,7 +40,10 @@ export default function Dashboard() {
         data.file,
         data.url,
         data.userEmail,
-        data.userPassword
+        data.userPassword,
+        data.browserMode,
+        data.headless,
+        data.cdpUrl
       )
 
       // Navigate to job results page
@@ -61,7 +64,10 @@ export default function Dashboard() {
       const response = await testCasesApi.uploadAndReplay(
         data.file,
         data.userEmail,
-        data.userPassword
+        data.userPassword,
+        data.browserMode,
+        data.headless,
+        data.cdpUrl
       )
 
       // Navigate to job results page

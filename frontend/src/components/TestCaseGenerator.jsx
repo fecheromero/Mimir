@@ -8,6 +8,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
   const [url, setUrl] = useState('')
   const [userEmail, setUserEmail] = useState('')
   const [userPassword, setUserPassword] = useState('')
+  const [showCredentials, setShowCredentials] = useState(false)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -34,8 +35,8 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
     onGenerate({
       description,
       url,
-      userEmail: userEmail || null,
-      userPassword: userPassword || null,
+      userEmail: showCredentials ? userEmail : null,
+      userPassword: showCredentials ? userPassword : null,
     })
   }
 
@@ -92,33 +93,54 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              User Email (optional)
-            </label>
+        {/* Optional Credentials Toggle */}
+        <div>
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
-              type="email"
-              value={userEmail}
-              onChange={(e) => setUserEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="user@example.com"
+              type="checkbox"
+              checked={showCredentials}
+              onChange={(e) => setShowCredentials(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              disabled={loading}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password (optional)
-            </label>
-            <input
-              type="password"
-              value={userPassword}
-              onChange={(e) => setUserPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-            />
-          </div>
+            <span className="text-sm font-medium text-gray-700">
+              Include login credentials (optional)
+            </span>
+          </label>
         </div>
+
+        {/* Credentials Fields */}
+        {showCredentials && (
+          <div className="space-y-4 pl-6 border-l-2 border-blue-200">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                placeholder="user@example.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={userPassword}
+                onChange={(e) => setUserPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
+              />
+            </div>
+          </div>
+        )}
 
         <button
           type="submit"

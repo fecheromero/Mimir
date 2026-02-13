@@ -125,7 +125,7 @@ def _filter_actions_for_replay(actions):
     return replay_actions
 
 
-async def _run_with_timeout(agent, test_case_text, log_capture=None):
+async def _run_with_timeout(agent, test_case_text, headless=False, log_capture=None):
     """Run agent with 10 minute timeout (safety net - max_steps is primary limit)."""
     # Only capture logs in local mode
     if log_capture and settings.browser_execution_mode == "local":
@@ -133,7 +133,7 @@ async def _run_with_timeout(agent, test_case_text, log_capture=None):
 
     try:
         return await asyncio.wait_for(
-            agent.run_agent(test_case_text, headless=False),
+            agent.run_agent(test_case_text, headless=headless),
             timeout=600  # 10 minutes (safety net only, max_steps=30 is the main limit)
         )
     finally:
@@ -148,7 +148,10 @@ def execute_test_cases_task(
     test_case_text: str,
     url: str,
     user_email: str = None,
-    user_password: str = None
+    user_password: str = None,
+    browser_mode: str = "new",
+    headless: bool = False,
+    cdp_url: str = None
 ):
     """
     Celery task to execute test cases using browser automation.
@@ -167,7 +170,9 @@ def execute_test_cases_task(
         agent = QaAgent(
             base_url=url,
             email=user_email,
-            password=user_password
+            password=user_password,
+            browser_mode=browser_mode,
+            cdp_url=cdp_url
         )
 
         update_job_status(job_id, "processing", 30, "Starting test execution")
@@ -177,7 +182,7 @@ def execute_test_cases_task(
         result = None
         timed_out = False
         try:
-            result = asyncio.run(_run_with_timeout(agent, test_case_text, log_capture))
+            result = asyncio.run(_run_with_timeout(agent, test_case_text, headless, log_capture))
         except asyncio.TimeoutError:
             timed_out = True
             update_job_status(job_id, "processing", 80, "Test timed out, generating partial report")
@@ -504,7 +509,10 @@ def replay_actions_task(
     user_password: str = None,
     test_case_text: str = None,
     test_expectations: dict = None,
-    expected_outcome: str = None
+    expected_outcome: str = None,
+    browser_mode: str = "new",
+    headless: bool = False,
+    cdp_url: str = None
 ):
     """
     Celery task to replay actions without LLM and evaluate result.
@@ -528,7 +536,9 @@ def replay_actions_task(
         replay_service = ReplayService(
             base_url=url,
             email=user_email,
-            password=user_password
+            password=user_password,
+            browser_mode=browser_mode,
+            cdp_url=cdp_url
         )
 
         update_job_status(job_id, "processing", 30, "Replaying actions")
@@ -538,7 +548,8 @@ def replay_actions_task(
             actions,
             test_case_text=test_case_text,
             test_expectations=test_expectations,
-            expected_outcome=expected_outcome
+            expected_outcome=expected_outcome,
+            headless=headless
         ))
 
         update_job_status(job_id, "processing", 80, "Generating replay report")

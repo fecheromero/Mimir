@@ -9,7 +9,7 @@ settings = get_settings()
 class ReplayService:
     """Replay actions from a previous test execution (local mode only)."""
 
-    def __init__(self, base_url: str = None, email: str = None, password: str = None):
+    def __init__(self, base_url: str = None, email: str = None, password: str = None, browser_mode: str = "new", cdp_url: str = None):
         # Validate that we're in local mode
         if settings.browser_execution_mode != "local":
             raise ValueError(
@@ -21,13 +21,16 @@ class ReplayService:
         self.base_url = base_url
         self.email = email
         self.password = password
+        self.browser_mode = browser_mode
+        self.cdp_url = cdp_url
 
     async def replay_actions(
         self,
         actions,
         test_case_text=None,
         test_expectations=None,
-        expected_outcome=None
+        expected_outcome=None,
+        headless=False
     ):
         """
         Replay actions and evaluate the result.
@@ -92,11 +95,20 @@ class ReplayService:
             self.test_context = None
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
-            context = await browser.new_context(
-                viewport={'width': 1280, 'height': 720}
-            )
-            page = await context.new_page()
+            # Connect to existing browser if mode is "existing" and CDP URL is provided
+            if self.browser_mode == "existing" and self.cdp_url:
+                browser = await p.chromium.connect_over_cdp(self.cdp_url)
+                # Use the first available context and page when connecting to existing browser
+                context = browser.contexts[0] if browser.contexts else await browser.new_context(
+                    viewport={'width': 1280, 'height': 720}
+                )
+                page = context.pages[0] if context.pages else await context.new_page()
+            else:
+                browser = await p.chromium.launch(headless=headless)
+                context = await browser.new_context(
+                    viewport={'width': 1280, 'height': 720}
+                )
+                page = await context.new_page()
 
             executed_actions = []
             errors = []

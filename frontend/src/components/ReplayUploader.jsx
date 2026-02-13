@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import { Play, Upload } from 'lucide-react'
+import BrowserSettings from './BrowserSettings'
 
 export default function ReplayUploader({ onReplay, loading }) {
   const [file, setFile] = useState(null)
   const [userEmail, setUserEmail] = useState('')
   const [userPassword, setUserPassword] = useState('')
   const [showCredentials, setShowCredentials] = useState(false)
+  const [browserMode, setBrowserMode] = useState('new')
+  const [headless, setHeadless] = useState(false)
+  const [cdpUrl, setCdpUrl] = useState('http://localhost:9222')
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
@@ -29,6 +33,9 @@ export default function ReplayUploader({ onReplay, loading }) {
       file,
       userEmail: showCredentials ? userEmail : null,
       userPassword: showCredentials ? userPassword : null,
+      browserMode,
+      headless,
+      cdpUrl: browserMode === 'existing' ? cdpUrl : null,
     })
   }
 
@@ -120,6 +127,16 @@ export default function ReplayUploader({ onReplay, loading }) {
             </div>
           </div>
         )}
+
+        <BrowserSettings
+          browserMode={browserMode}
+          setBrowserMode={setBrowserMode}
+          headless={headless}
+          setHeadless={setHeadless}
+          cdpUrl={cdpUrl}
+          setCdpUrl={setCdpUrl}
+          disabled={loading}
+        />
 
         {/* Submit Button */}
         <button

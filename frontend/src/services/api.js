@@ -17,22 +17,28 @@ export const testCasesApi = {
     return response.data
   },
 
-  execute: async (testCaseText, url, userEmail = null, userPassword = null) => {
+  execute: async (testCaseText, url, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
     const response = await api.post('/test-cases/execute', {
       test_case_text: testCaseText,
       url,
       user_email: userEmail,
       user_password: userPassword,
+      browser_mode: browserMode,
+      headless: headless,
+      cdp_url: cdpUrl,
     })
     return response.data
   },
 
-  uploadAndExecute: async (file, url, userEmail = null, userPassword = null) => {
+  uploadAndExecute: async (file, url, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
     const formData = new FormData()
     formData.append('file', file)
     if (url) formData.append('url', url)
     if (userEmail) formData.append('user_email', userEmail)
     if (userPassword) formData.append('user_password', userPassword)
+    formData.append('browser_mode', browserMode)
+    formData.append('headless', headless)
+    if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
     const response = await api.post('/test-cases/upload-and-execute', formData, {
       headers: {
@@ -42,11 +48,14 @@ export const testCasesApi = {
     return response.data
   },
 
-  uploadAndReplay: async (file, userEmail = null, userPassword = null) => {
+  uploadAndReplay: async (file, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
     const formData = new FormData()
     formData.append('file', file)
     if (userEmail) formData.append('user_email', userEmail)
     if (userPassword) formData.append('user_password', userPassword)
+    formData.append('browser_mode', browserMode)
+    formData.append('headless', headless)
+    if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
     const response = await api.post('/test-cases/upload-and-replay', formData, {
       headers: {
@@ -63,7 +72,10 @@ export const testCasesApi = {
     userPassword = null,
     testCaseText = null,
     testExpectations = null,
-    expectedOutcome = null
+    expectedOutcome = null,
+    browserMode = 'new',
+    headless = false,
+    cdpUrl = null
   ) => {
     const response = await api.post('/test-cases/replay-actions', {
       actions,
@@ -73,6 +85,9 @@ export const testCasesApi = {
       test_case_text: testCaseText,
       test_expectations: testExpectations,
       expected_outcome: expectedOutcome,
+      browser_mode: browserMode,
+      headless: headless,
+      cdp_url: cdpUrl,
     })
     return response.data
   },

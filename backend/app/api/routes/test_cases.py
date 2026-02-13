@@ -24,6 +24,9 @@ class ExecuteTestCasesRequest(BaseModel):
     url: str
     user_email: Optional[str] = None
     user_password: Optional[str] = None
+    browser_mode: Optional[str] = "new"  # "new" or "existing" (CDP)
+    headless: Optional[bool] = False
+    cdp_url: Optional[str] = None  # CDP URL when browser_mode is "existing"
 
 
 class ReplayActionsRequest(BaseModel):
@@ -34,6 +37,9 @@ class ReplayActionsRequest(BaseModel):
     test_case_text: Optional[str] = None  # Original test instructions
     test_expectations: Optional[dict] = None  # Expected success criteria
     expected_outcome: Optional[str] = None  # What the test should achieve
+    browser_mode: Optional[str] = "new"  # "new" or "existing" (CDP)
+    headless: Optional[bool] = False
+    cdp_url: Optional[str] = None  # CDP URL when browser_mode is "existing"
 
 
 class JobResponse(BaseModel):
@@ -92,7 +98,10 @@ async def execute_test_cases(request: ExecuteTestCasesRequest):
         request.test_case_text,
         request.url,
         request.user_email,
-        request.user_password
+        request.user_password,
+        request.browser_mode,
+        request.headless,
+        request.cdp_url
     )
 
     return JobResponse(job_id=job_id, status="queued")
@@ -103,7 +112,10 @@ async def upload_and_execute(
     file: UploadFile = File(...),
     url: Optional[str] = Form(None),
     user_email: Optional[str] = Form(None),
-    user_password: Optional[str] = Form(None)
+    user_password: Optional[str] = Form(None),
+    browser_mode: Optional[str] = Form("new"),
+    headless: Optional[bool] = Form(False),
+    cdp_url: Optional[str] = Form(None)
 ):
     """
     Upload a previously generated test case file and execute it.
@@ -155,7 +167,10 @@ async def upload_and_execute(
             test_case_text,
             url,
             user_email,
-            user_password
+            user_password,
+            browser_mode,
+            headless,
+            cdp_url
         )
 
         return JobResponse(job_id=job_id, status="queued")
@@ -170,7 +185,10 @@ async def upload_and_execute(
 async def upload_and_replay(
     file: UploadFile = File(...),
     user_email: Optional[str] = Form(None),
-    user_password: Optional[str] = Form(None)
+    user_password: Optional[str] = Form(None),
+    browser_mode: Optional[str] = Form("new"),
+    headless: Optional[bool] = Form(False),
+    cdp_url: Optional[str] = Form(None)
 ):
     """
     Upload a replay actions file and execute it.
@@ -221,7 +239,10 @@ async def upload_and_replay(
             user_password,
             test_case_text,
             test_expectations,
-            expected_outcome
+            expected_outcome,
+            browser_mode,
+            headless,
+            cdp_url
         )
 
         return JobResponse(job_id=job_id, status="queued")
@@ -261,7 +282,10 @@ async def replay_actions(request: ReplayActionsRequest):
         request.user_password,
         request.test_case_text,
         request.test_expectations,
-        request.expected_outcome
+        request.expected_outcome,
+        request.browser_mode,
+        request.headless,
+        request.cdp_url
     )
 
     return JobResponse(job_id=job_id, status="queued")

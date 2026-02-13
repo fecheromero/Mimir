@@ -1,12 +1,26 @@
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Download, Play } from 'lucide-react'
+import BrowserSettings from './BrowserSettings'
 
 export default function TestCaseViewer({ testCases, onExecute, onDownload, executing }) {
+  const [browserMode, setBrowserMode] = useState('new')
+  const [headless, setHeadless] = useState(false)
+  const [cdpUrl, setCdpUrl] = useState('http://localhost:9222')
+
   if (!testCases) return null
 
+  const handleExecute = () => {
+    onExecute({
+      browserMode,
+      headless,
+      cdpUrl: browserMode === 'existing' ? cdpUrl : null
+    })
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-lg shadow p-6 space-y-4">
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Generated Test Cases</h2>
         <div className="flex space-x-2">
           <button
@@ -17,7 +31,7 @@ export default function TestCaseViewer({ testCases, onExecute, onDownload, execu
             <span>Download</span>
           </button>
           <button
-            onClick={onExecute}
+            onClick={handleExecute}
             disabled={executing}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
           >
@@ -32,6 +46,16 @@ export default function TestCaseViewer({ testCases, onExecute, onDownload, execu
           <ReactMarkdown>{testCases.test_case_text}</ReactMarkdown>
         </div>
       </div>
+
+      <BrowserSettings
+        browserMode={browserMode}
+        setBrowserMode={setBrowserMode}
+        headless={headless}
+        setHeadless={setHeadless}
+        cdpUrl={cdpUrl}
+        setCdpUrl={setCdpUrl}
+        disabled={executing}
+      />
 
       <div className="mt-4 text-sm text-gray-500">
         <p>Created: {new Date(testCases.created_at).toLocaleString()}</p>

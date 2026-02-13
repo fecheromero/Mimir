@@ -84,11 +84,15 @@ class QaAgent:
         self,
         base_url: str = None,
         email: str = None,
-        password: str = None
+        password: str = None,
+        browser_mode: str = "new",
+        cdp_url: str = None
     ):
         self.base_url = base_url
         self.email = email
         self.password = password
+        self.browser_mode = browser_mode
+        self.cdp_url = cdp_url
 
         # Only initialize local LLM if using local execution
         if settings.browser_execution_mode == "local":
@@ -180,10 +184,16 @@ Then execute the following test case:
 """
 
         # Create browser instance (browser-use 0.11.9)
-        browser = Browser(
-            headless=headless,
-            disable_security=True,
-        )
+        browser_kwargs = {
+            "headless": headless,
+            "disable_security": True,
+        }
+
+        # Connect to existing browser if mode is "existing" and CDP URL is provided
+        if self.browser_mode == "existing" and self.cdp_url:
+            browser_kwargs["cdp_url"] = self.cdp_url
+
+        browser = Browser(**browser_kwargs)
 
         # Create controller for custom actions
         controller = Controller()

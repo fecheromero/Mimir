@@ -29,12 +29,6 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379"
 
-    # SSO (Optional)
-    sso_provider: str = "google"
-    sso_client_id: str = ""
-    sso_client_secret: str = ""
-    sso_redirect_uri: str = ""
-
     # Application
     backend_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:3000"

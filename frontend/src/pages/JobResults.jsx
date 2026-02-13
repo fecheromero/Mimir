@@ -69,14 +69,17 @@ export default function JobResults() {
     return () => clearInterval(interval)
   }, [jobId, mode, status?.status, testCases, results])
 
-  const handleExecute = async () => {
+  const handleExecute = async (browserSettings) => {
     try {
       setExecuting(true)
       const response = await testCasesApi.execute(
         testCases.test_case_text,
         generationData.url,
         generationData.userEmail,
-        generationData.userPassword
+        generationData.userPassword,
+        browserSettings.browserMode,
+        browserSettings.headless,
+        browserSettings.cdpUrl
       )
 
       // Navigate to execution job
