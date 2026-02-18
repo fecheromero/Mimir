@@ -35,14 +35,23 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         ticket_id: Ticket identifier
         description: Ticket description
     """
+    logger = logging.getLogger(__name__)
+    logger.info(f"[Job {job_id}] Starting test case generation task")
+
     try:
         update_job_status(job_id, "processing", 10, "Initializing test case generation")
+        logger.info(f"[Job {job_id}] Status updated to processing")
 
         # Create agent and generate test cases
+        logger.info(f"[Job {job_id}] Creating TestCaseAgent")
         agent = TestCaseAgent()
+        logger.info(f"[Job {job_id}] TestCaseAgent created successfully")
+
         update_job_status(job_id, "processing", 30, "Generating test cases with AI")
+        logger.info(f"[Job {job_id}] Calling LLM to generate test cases")
 
         test_case_text = agent.generate_test_case(ticket_id, description)
+        logger.info(f"[Job {job_id}] Test cases generated successfully (length: {len(test_case_text)} chars)")
 
         update_job_status(job_id, "processing", 70, "Formatting test cases")
 
@@ -55,10 +64,13 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         }
 
         # Save to storage
+        logger.info(f"[Job {job_id}] Saving test cases to storage")
         storage = StorageService()
         storage.save_test_cases(job_id, test_cases)
+        logger.info(f"[Job {job_id}] Test cases saved successfully")
 
         update_job_status(job_id, "completed", 100, "Test cases generated successfully")
+        logger.info(f"[Job {job_id}] Task completed successfully")
 
         return {
             "job_id": job_id,
@@ -67,7 +79,9 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         }
 
     except Exception as e:
-        update_job_status(job_id, "failed", 0, f"Error: {str(e)}")
+        error_msg = f"Error: {str(e)}"
+        logger.error(f"[Job {job_id}] Task failed: {error_msg}", exc_info=True)
+        update_job_status(job_id, "failed", 0, error_msg)
         raise
 
 

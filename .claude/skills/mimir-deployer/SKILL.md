@@ -7,6 +7,15 @@ description: Deploy Mimir (FastAPI + Celery + React) to Render.com + Vercel with
 
 This skill contains all the knowledge needed to deploy Mimir to a free-tier production environment using Render.com (backend) and Vercel (frontend) with automatic CI/CD from GitHub.
 
+## 📚 Guide Organization
+
+This guide focuses on **production deployment**. For other topics:
+
+- **Local Development**: See `local-development.md` for complete local setup
+- **Alternative Platforms**: See `alternatives.md` for Railway, Fly.io, VPS options
+- **Troubleshooting**: See `troubleshooting.md` for common issues
+- **Environment Variables**: See `env-templates.md` for copy-paste ready configs
+
 ## Architecture Overview
 
 ### ⚠️ IMPORTANT: Render Free Tier Limitation
