@@ -2,6 +2,18 @@
 
 Comprehensive troubleshooting for Render + Vercel deployment.
 
+## ⚠️ Render Free Tier Limitation
+
+**Background Workers are NOT available on Render's free tier** (as of 2024+).
+
+**Solution**: We run both FastAPI and Celery worker in the same Web Service using `backend/start.sh`.
+
+If you see errors like:
+- "service type is not available for this plan"
+- "Background Worker requires paid plan"
+
+This is expected. Follow the updated deployment guide that uses a single Web Service.
+
 ## Quick Diagnostics
 
 ### Health Check Commands

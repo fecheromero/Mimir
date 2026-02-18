@@ -2,8 +2,11 @@
 # Alternative to manual setup: place this file in repo root
 # Render will auto-detect and create all services
 
+# ⚠️ IMPORTANT: Background Workers are NOT available on Render free tier
+# This blueprint runs both FastAPI and Celery worker in a single Web Service
+
 services:
-  # FastAPI Web Service
+  # Combined FastAPI + Celery Worker Service
   - type: web
     name: mimir-api
     runtime: python
@@ -12,7 +15,7 @@ services:
     branch: main
     rootDir: backend
     buildCommand: pip install -r requirements.txt && playwright install chromium
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: ./start.sh
     envVars:
       - key: LLM_PROVIDER
         value: anthropic
@@ -44,69 +47,8 @@ services:
       - key: QA_AGENT_MODEL
         value: claude-sonnet-4-5-20250929
 
-  # Celery Worker
-  - type: worker
-    name: mimir-worker
-    runtime: python
-    region: oregon
-    plan: free
-    branch: main
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt && playwright install chromium
-    startCommand: celery -A app.core.celery_app worker --loglevel=info
-    envVars:
-      - key: LLM_PROVIDER
-        value: anthropic
-      - key: ANTHROPIC_API_KEY
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
-      - key: BROWSER_EXECUTION_MODE
-        value: cloud
-      - key: BROWSER_USE_API_KEY
-        sync: false
-      - key: JOB_RETENTION_HOURS
-        value: 24
-
-  # Celery Beat (Optional)
-  - type: worker
-    name: mimir-beat
-    runtime: python
-    region: oregon
-    plan: free
-    branch: main
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.core.celery_app beat --loglevel=info
-    envVars:
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: redis
-          name: mimir-redis
-          property: connectionString
+  # ⚠️ Background Workers removed - not available on free tier
+  # Celery worker runs inside the web service above via start.sh
 
 databases:
   # Redis for Celery + Job Storage

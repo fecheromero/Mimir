@@ -10,7 +10,9 @@ This skill provides comprehensive guidance for deploying Mimir to production usi
 
 1. **SKILL.md** - Main skill file
    - Complete step-by-step deployment guide
-   - Render setup (API, Worker, Redis, Beat)
+   - ⚠️ Updated for Render free tier (no Background Workers)
+   - Combined API + Worker process solution
+   - Render setup (Single Web Service + Redis)
    - Vercel setup (Frontend)
    - CI/CD configuration
    - Monitoring & troubleshooting basics
@@ -18,13 +20,13 @@ This skill provides comprehensive guidance for deploying Mimir to production usi
 
 2. **render.yaml** - Infrastructure as Code
    - Blueprint for automatic Render service creation
-   - Pre-configured services (API, Worker, Beat, Redis)
+   - ⚠️ Updated: Single Web Service (no Background Workers)
    - Environment variable templates
    - Usage: Place in repo root, Render auto-detects
 
 3. **env-templates.md** - Environment Variables Reference
    - Copy-paste ready environment variables
-   - Separate templates for each service
+   - ⚠️ Updated: Single service template (combined API + Worker)
    - Variable descriptions and sources
    - Testing commands
 
@@ -35,14 +37,28 @@ This skill provides comprehensive guidance for deploying Mimir to production usi
    - Returns pass/fail for each check
 
 5. **troubleshooting.md** - Advanced Troubleshooting
+   - ⚠️ Includes free tier limitation workarounds
    - Common issues & solutions
    - Debug commands
    - Performance optimization
    - Monitoring setup
    - Disaster recovery procedures
 
-6. **README.md** - This file
+6. **alternatives.md** - Alternative Platforms
+   - Railway, Fly.io, AWS, VPS comparisons
+   - Cost breakdown
+   - Migration guides
+   - Platform recommendations based on use case
+
+7. **README.md** - This file
    - Skill overview and file descriptions
+
+### 📦 Supporting Files (in main repo)
+
+- **`backend/start.sh`** - Startup script
+  - Runs both FastAPI and Celery worker in one process
+  - Required for Render free tier deployment
+  - Auto-created when using this skill
 
 ## Quick Start
 

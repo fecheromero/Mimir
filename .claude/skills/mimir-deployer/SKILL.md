@@ -9,11 +9,16 @@ This skill contains all the knowledge needed to deploy Mimir to a free-tier prod
 
 ## Architecture Overview
 
+### ⚠️ IMPORTANT: Render Free Tier Limitation
+
+**Background Workers are NOT available on Render's free tier** (as of 2024+).
+
+**Solution**: Run Celery worker in the same process as FastAPI using a process manager.
+
 ```
 GitHub Repository
     ├─> Render.com (Backend Infrastructure)
-    │   ├─> Web Service (FastAPI API)
-    │   ├─> Background Worker (Celery)
+    │   ├─> Web Service (FastAPI + Celery Worker combined)
     │   └─> Redis (Managed, 25MB free tier)
     └─> Vercel (Frontend)
         └─> Static Site (React + Vite)
@@ -40,7 +45,35 @@ GitHub Repository
 3. Click "Create Redis"
 4. **Copy the Internal Redis URL** (looks like: `redis://red-xxxxx:6379`)
 
-### Step 2: Create Web Service (FastAPI)
+### Step 2: Create Startup Script for Combined Process
+
+**First, create a startup script in your repository:**
+
+Create `backend/start.sh`:
+```bash
+#!/bin/bash
+# Start both FastAPI and Celery worker in parallel
+
+# Start Celery worker in background
+celery -A app.core.celery_app worker --loglevel=info &
+
+# Start FastAPI (foreground - keeps container running)
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Make it executable:
+```bash
+chmod +x backend/start.sh
+```
+
+Commit and push to GitHub:
+```bash
+git add backend/start.sh
+git commit -m "Add startup script for Render deployment"
+git push
+```
+
+### Step 3: Create Web Service (FastAPI + Celery Combined)
 
 1. Go to Render Dashboard → New → Web Service
 2. Connect your GitHub repository
@@ -56,7 +89,7 @@ GitHub Repository
      ```
    - **Start Command**:
      ```bash
-     uvicorn app.main:app --host 0.0.0.0 --port $PORT
+     ./start.sh
      ```
    - **Plan**: Free
    - **Environment Variables** (click "Add Environment Variable"):
@@ -75,39 +108,25 @@ GitHub Repository
 4. Click "Create Web Service"
 5. **Copy the Web Service URL** (e.g., `https://mimir-api.onrender.com`)
 
-### Step 3: Create Background Worker (Celery)
+**Note**: This single service now handles both API requests AND background job processing.
 
-1. Go to Render Dashboard → New → Background Worker
-2. Connect same GitHub repository
-3. Configure:
-   - **Name**: `mimir-worker`
-   - **Region**: Same as Redis and API
-   - **Branch**: `main`
-   - **Root Directory**: `backend`
-   - **Runtime**: Python 3
-   - **Build Command**:
-     ```bash
-     pip install -r requirements.txt && playwright install chromium
-     ```
-   - **Start Command**:
-     ```bash
-     celery -A app.core.celery_app worker --loglevel=info
-     ```
-   - **Plan**: Free
-   - **Environment Variables**: Use **exact same** as Web Service (copy all)
-4. Click "Create Background Worker"
+### ⚠️ About Celery Beat (Cleanup Tasks)
 
-### Step 4 (Optional): Create Celery Beat for Cleanup
+Celery Beat is used for periodic cleanup tasks. Since we can't run it as a separate worker on free tier, you have two options:
 
-1. Go to Render Dashboard → New → Background Worker
-2. Configure:
-   - **Name**: `mimir-beat`
-   - **Start Command**:
-     ```bash
-     celery -A app.core.celery_app beat --loglevel=info
-     ```
-   - Same environment variables as above
-3. This runs hourly cleanup tasks for old job files
+**Option 1**: Skip it (manual cleanup)
+- Jobs auto-expire from Redis after 24h
+- Files in `backend/app/storage/` persist until redeploy (then deleted)
+
+**Option 2**: Add Beat to the startup script (not recommended, uses more RAM)
+```bash
+# backend/start.sh - modified version
+celery -A app.core.celery_app beat --loglevel=info &
+celery -A app.core.celery_app worker --loglevel=info &
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+**Recommendation**: Skip Beat on free tier. Manual cleanup is fine for personal use.
 
 ## Part 2: Vercel Setup (Frontend)
 

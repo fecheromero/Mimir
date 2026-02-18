@@ -2,7 +2,12 @@
 
 Copy-paste these into Render and Vercel dashboards.
 
+## ⚠️ Free Tier Note
+
+Background Workers are NOT available on Render free tier. We run both FastAPI and Celery worker in a single Web Service.
+
 ## Render - Web Service (mimir-api)
+**This service runs both API and Celery worker via `start.sh`**
 
 ```bash
 # LLM Configuration
@@ -37,21 +42,7 @@ JOB_RETENTION_HOURS=24
 FRONTEND_URL=https://mimir-xxxxx.vercel.app
 ```
 
-## Render - Background Worker (mimir-worker)
-
-```bash
-# Use EXACT same environment variables as Web Service above
-# Copy-paste all variables from mimir-api
-```
-
-## Render - Celery Beat (mimir-beat) - Optional
-
-```bash
-# Only needs Redis configuration
-REDIS_URL=redis://red-xxxxxxxxxxxxxxxxxxxxx:6379
-CELERY_BROKER_URL=redis://red-xxxxxxxxxxxxxxxxxxxxx:6379/0
-CELERY_RESULT_BACKEND=redis://red-xxxxxxxxxxxxxxxxxxxxx:6379/0
-```
+**Note**: This single service handles both API requests AND background job processing.
 
 ## Vercel - Frontend
 
