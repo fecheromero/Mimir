@@ -81,13 +81,25 @@ Create `backend/start.sh`:
 ```bash
 #!/bin/bash
 # Start both FastAPI and Celery worker in parallel
+# Optimized for Render free tier (512MB RAM)
 
-# Start Celery worker in background
-celery -A app.core.celery_app worker --loglevel=info &
+# Start Celery worker in background with memory optimizations
+celery -A app.core.celery_app worker \
+  --loglevel=info \
+  --concurrency=1 \         # Only 1 worker (instead of default 8)
+  --pool=solo \             # Single process mode (saves ~400MB)
+  --max-tasks-per-child=10  # Restart worker after 10 tasks (frees memory)
+  &
 
 # Start FastAPI (foreground - keeps container running)
-exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
 ```
+
+**Why these optimizations?**
+- Default Celery spawns 8 workers = ~400MB RAM
+- With `--pool=solo --concurrency=1` = ~50MB RAM
+- Free tier has only 512MB total
+- This leaves room for FastAPI (~100MB) + LLM client (~50MB)
 
 Make it executable:
 ```bash

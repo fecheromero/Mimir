@@ -224,49 +224,76 @@ Access to fetch at 'https://api.onrender.com/api/generate' from origin
 
 ### 6. Out of Memory (OOM) Errors
 
-**Symptom**: Worker logs show:
-```
-Killed
-```
+**Symptom**:
+- Service crashes and restarts
+- Logs show "Killed" or nothing
+- Render dashboard shows "Out of Memory"
+- Service becomes unresponsive
 
-Or Render dashboard shows "Out of Memory"
-
-**Cause**: Playwright browsers consume ~200MB RAM each. Free tier has 512MB total.
+**Cause**: Render free tier has only **512MB RAM**. Memory usage breakdown:
+- FastAPI (uvicorn): ~100MB
+- Celery worker (default 8 processes): ~50MB per process = 400MB
+- LLM client initialization: ~50-100MB
+- Browser automation (if local): ~200MB per browser
+- **Total**: Can easily exceed 512MB
 
 **Solutions**:
 
-#### Option 1: Use Cloud Browser Mode (Recommended)
+#### Solution 1: Optimize Celery Worker (Already implemented in start.sh)
+
+The `backend/start.sh` file is already optimized with:
+```bash
+celery -A app.core.celery_app worker \
+  --concurrency=1 \         # Only 1 worker instead of 8
+  --pool=solo \             # Single process mode (no prefork)
+  --max-tasks-per-child=10  # Restart after 10 tasks (free memory)
+```
+
+This reduces Celery from ~400MB to ~50MB.
+
+**If still experiencing OOM**, further reduce:
+```bash
+# Edit backend/start.sh
+celery -A app.core.celery_app worker \
+  --concurrency=1 \
+  --pool=solo \
+  --max-tasks-per-child=5   # Restart more frequently
+```
+
+#### Solution 2: Use Cloud Browser Mode (Recommended)
+
+Browser automation is the biggest memory consumer. Use cloud mode:
+
 ```bash
 # In Render environment variables
 BROWSER_EXECUTION_MODE=cloud
 BROWSER_USE_API_KEY=bu_xxxxxxxxxxxxx
 ```
 
-This offloads browser execution to browser-use cloud.
+This offloads browser execution to browser-use cloud, saving ~200MB.
 
-#### Option 2: Optimize Local Browser
-If you must use local mode:
+#### Solution 3: Monitor Memory Usage
 
-```python
-# backend/app/services/qa_agent.py
-# Update browser launch args
+Check Render dashboard → Service → Metrics:
+- If memory consistently hits 512MB → You need optimizations above
+- If memory spikes then crashes → Reduce `--max-tasks-per-child`
 
-browser_config = BrowserConfig(
-    headless=True,
-    disable_security=True,  # Saves memory
-    extra_chromium_args=[
-        '--disable-dev-shm-usage',  # Use /tmp instead of /dev/shm
-        '--disable-gpu',
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--single-process',  # Reduces memory usage
-    ]
-)
-```
+#### Solution 4: Upgrade Render Plan (If Needed)
 
-#### Option 3: Upgrade Render Plan
-- **Starter**: $7/month, 512MB RAM
-- **Standard**: $25/month, 2GB RAM
+Free tier limits:
+- **Free**: 512MB RAM (current)
+- **Starter**: $7/month, 512MB RAM (same but always-on)
+- **Standard**: $25/month, 2GB RAM (4x memory)
+
+**Recommendation for personal use**: Stay on free tier with optimizations above.
+
+#### Solution 5: Alternative Platform
+
+If memory is consistently an issue, consider:
+- **Railway**: $5 credit/month, 1GB RAM per service
+- **Fly.io**: Free tier, 3x 256MB VMs (can split services)
+
+See `alternatives.md` for details.
 
 ---
 
