@@ -1,6 +1,8 @@
+import logging
 from app.core.config import get_settings
 from app.core.llm_factory import get_llm_for_test_generation
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -8,8 +10,17 @@ class TestCaseAgent:
     """Use LLM model to generate test cases based on ticket descriptions."""
 
     def __init__(self):
-        self.client = get_llm_for_test_generation()
+        self._client = None
         self.model = settings.test_case_agent_model
+        logger.info(f"TestCaseAgent initialized with model: {self.model}")
+
+    @property
+    def client(self):
+        """Lazy-load the LLM client."""
+        if self._client is None:
+            logger.info("Initializing LLM client (lazy load)")
+            self._client = get_llm_for_test_generation()
+        return self._client
 
     def generate_test_case(self, ticket_id: str, description: str) -> str:
         """

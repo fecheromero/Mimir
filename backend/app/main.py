@@ -62,6 +62,22 @@ async def debug_cors():
     }
 
 
+@app.get("/debug/env")
+async def debug_env():
+    """Debug endpoint to check environment configuration."""
+    return {
+        "llm_provider": settings.llm_provider,
+        "anthropic_api_key_set": bool(settings.anthropic_api_key),
+        "anthropic_api_key_prefix": settings.anthropic_api_key[:15] if settings.anthropic_api_key else None,
+        "openai_api_key_set": bool(settings.openai_api_key),
+        "openai_api_key_prefix": settings.openai_api_key[:15] if settings.openai_api_key else None,
+        "redis_url": settings.redis_url.split('@')[-1] if '@' in settings.redis_url else settings.redis_url,  # Hide password
+        "browser_execution_mode": settings.browser_execution_mode,
+        "test_case_agent_model": settings.test_case_agent_model,
+        "qa_agent_model": settings.qa_agent_model,
+    }
+
+
 # Include routers
 app.include_router(test_cases.router, prefix="/api/test-cases", tags=["test-cases"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])

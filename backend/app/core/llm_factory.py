@@ -1,8 +1,10 @@
 """
 LLM Factory - Switch between Anthropic and OpenAI
 """
+import logging
 from app.core.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
@@ -11,15 +13,41 @@ def get_llm_for_test_generation():
     Get LLM instance for test case generation (sync).
     Returns an Anthropic client or OpenAI client.
     """
-    if settings.llm_provider == "openai":
-        from openai import OpenAI
-        return OpenAIWrapper(
-            api_key=settings.openai_api_key,
-            model=settings.openai_model
-        )
-    else:  # anthropic
-        from anthropic import Anthropic
-        return Anthropic(api_key=settings.anthropic_api_key)
+    logger.info(f"Initializing LLM client for provider: {settings.llm_provider}")
+
+    try:
+        if settings.llm_provider == "openai":
+            logger.info("Creating OpenAI client...")
+            from openai import OpenAI
+
+            if not settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY is not set")
+
+            logger.info(f"OpenAI API key present: {settings.openai_api_key[:10]}...")
+
+            client = OpenAIWrapper(
+                api_key=settings.openai_api_key,
+                model=settings.openai_model
+            )
+            logger.info("OpenAI client created successfully")
+            return client
+
+        else:  # anthropic
+            logger.info("Creating Anthropic client...")
+            from anthropic import Anthropic
+
+            if not settings.anthropic_api_key:
+                raise ValueError("ANTHROPIC_API_KEY is not set")
+
+            logger.info(f"Anthropic API key present: {settings.anthropic_api_key[:10]}...")
+
+            client = Anthropic(api_key=settings.anthropic_api_key)
+            logger.info("Anthropic client created successfully")
+            return client
+
+    except Exception as e:
+        logger.error(f"Failed to create LLM client: {str(e)}", exc_info=True)
+        raise
 
 
 def get_llm_for_browser_use():
