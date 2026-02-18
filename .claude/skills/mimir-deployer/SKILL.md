@@ -45,9 +45,28 @@ GitHub Repository
 3. Click "Create Redis"
 4. **Copy the Internal Redis URL** (looks like: `redis://red-xxxxx:6379`)
 
-### Step 2: Create Startup Script for Combined Process
+### Step 2: Specify Python Version
 
-**First, create a startup script in your repository:**
+**Create `.python-version` file in repo root:**
+
+Some dependencies (like `aiofiles`) require Python 3.11+. Create this file:
+
+```bash
+echo "3.11" > .python-version
+```
+
+Commit and push:
+```bash
+git add .python-version
+git commit -m "Specify Python 3.11 for deployment"
+git push
+```
+
+This ensures Render uses Python 3.11 and avoids build errors.
+
+### Step 3: Create Startup Script for Combined Process
+
+**Create a startup script in your repository:**
 
 Create `backend/start.sh`:
 ```bash
@@ -73,7 +92,7 @@ git commit -m "Add startup script for Render deployment"
 git push
 ```
 
-### Step 3: Create Web Service (FastAPI + Celery Combined)
+### Step 4: Create Web Service (FastAPI + Celery Combined)
 
 1. Go to Render Dashboard → New → Web Service
 2. Connect your GitHub repository

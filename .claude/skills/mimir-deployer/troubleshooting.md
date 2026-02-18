@@ -71,7 +71,38 @@ export const generateTestCases = async (data) => {
 
 ---
 
-### 2. Build Fails: "playwright install chromium" Error
+### 2. Build Fails: "Py_C_RECURSION_LIMIT was not declared" Error
+
+**Symptom**: Render build logs show:
+```
+error: 'Py_C_RECURSION_LIMIT' was not declared in this scope
+```
+
+**Cause**: Python version too old. Some dependencies (like `aiofiles==25.1.0`) require Python 3.11+
+
+**Solution 1**: Create `.python-version` file in repo root:
+```bash
+# Create file
+echo "3.11" > .python-version
+
+# Commit and push
+git add .python-version
+git commit -m "Specify Python 3.11 for deployment"
+git push
+```
+
+**Solution 2**: Specify in Render dashboard:
+1. Go to Service → Settings
+2. Under "Build & Deploy" → Environment
+3. Set Python version to `3.11`
+
+**Solution 3**: Downgrade problematic dependencies:
+```bash
+# In requirements.txt, change:
+aiofiles==24.1.0  # Instead of 25.1.0
+```
+
+### 3. Build Fails: "playwright install chromium" Error
 
 **Symptom**: Render build logs show:
 ```
@@ -97,7 +128,7 @@ apt-get update && apt-get install -y wget && pip install -r requirements.txt && 
 
 ---
 
-### 3. Celery Worker Not Processing Jobs
+### 4. Celery Worker Not Processing Jobs
 
 **Symptom**: Jobs stuck in "pending" state forever
 
@@ -147,7 +178,7 @@ CELERY_RESULT_BACKEND=redis://red-xxxxx:6379/0
 
 ---
 
-### 4. CORS Errors in Browser Console
+### 5. CORS Errors in Browser Console
 
 **Symptom**: Frontend shows:
 ```
@@ -191,7 +222,7 @@ Access to fetch at 'https://api.onrender.com/api/generate' from origin
 
 ---
 
-### 5. Out of Memory (OOM) Errors
+### 6. Out of Memory (OOM) Errors
 
 **Symptom**: Worker logs show:
 ```
@@ -239,7 +270,7 @@ browser_config = BrowserConfig(
 
 ---
 
-### 6. Files Disappear After Redeploy
+### 7. Files Disappear After Redeploy
 
 **Symptom**: Downloaded test results are gone after pushing new code
 
@@ -282,7 +313,7 @@ class StorageService:
 
 ---
 
-### 7. Vercel Build Fails
+### 8. Vercel Build Fails
 
 **Symptom**: Vercel deployment failed
 
@@ -322,7 +353,7 @@ Fix: Ensure case-sensitive imports match file names exactly.
 
 ---
 
-### 8. Jobs Complete But No Results
+### 9. Jobs Complete But No Results
 
 **Symptom**: Job status shows "completed" but results are empty
 
@@ -373,7 +404,7 @@ agent = Agent(
 
 ---
 
-### 9. Slow Performance
+### 10. Slow Performance
 
 **Symptom**: Jobs take 5+ minutes to complete
 
@@ -403,7 +434,7 @@ OPENAI_MODEL=gpt-4o-mini  # Much cheaper
 
 ---
 
-### 10. "Too Many Requests" Error
+### 11. "Too Many Requests" Error
 
 **Symptom**: API returns 429 error
 
