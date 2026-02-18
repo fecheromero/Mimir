@@ -18,8 +18,16 @@ origins = [
 ]
 
 # Add production frontend URL if configured
-if settings.frontend_url and settings.frontend_url not in origins:
-    origins.append(settings.frontend_url)
+if settings.frontend_url:
+    # Ensure URL has protocol
+    frontend_url = settings.frontend_url
+    if not frontend_url.startswith(("http://", "https://")):
+        frontend_url = f"https://{frontend_url}"
+
+    if frontend_url not in origins:
+        origins.append(frontend_url)
+
+print(f"🔧 CORS enabled for origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +50,16 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/debug/cors")
+async def debug_cors():
+    """Debug endpoint to check CORS configuration."""
+    return {
+        "configured_origins": origins,
+        "frontend_url_env": settings.frontend_url,
+        "cors_enabled": True,
+    }
 
 
 # Include routers

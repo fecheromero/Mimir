@@ -11,14 +11,14 @@ const api = axios.create({
 
 export const testCasesApi = {
   generate: async (ticketDescription) => {
-    const response = await api.post('/test-cases/generate', {
+    const response = await api.post('/api/test-cases/generate', {
       ticket_description: ticketDescription,
     })
     return response.data
   },
 
   execute: async (testCaseText, url, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
-    const response = await api.post('/test-cases/execute', {
+    const response = await api.post('/api/test-cases/execute', {
       test_case_text: testCaseText,
       url,
       user_email: userEmail,
@@ -40,7 +40,7 @@ export const testCasesApi = {
     formData.append('headless', headless)
     if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
-    const response = await api.post('/test-cases/upload-and-execute', formData, {
+    const response = await api.post('/api/test-cases/upload-and-execute', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -57,7 +57,7 @@ export const testCasesApi = {
     formData.append('headless', headless)
     if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
-    const response = await api.post('/test-cases/upload-and-replay', formData, {
+    const response = await api.post('/api/test-cases/upload-and-replay', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -77,7 +77,7 @@ export const testCasesApi = {
     headless = false,
     cdpUrl = null
   ) => {
-    const response = await api.post('/test-cases/replay-actions', {
+    const response = await api.post('/api/test-cases/replay-actions', {
       actions,
       url,
       user_email: userEmail,
@@ -95,22 +95,22 @@ export const testCasesApi = {
 
 export const jobsApi = {
   getStatus: async (jobId) => {
-    const response = await api.get(`/jobs/${jobId}/status`)
+    const response = await api.get(`/api/jobs/${jobId}/status`)
     return response.data
   },
 
   getTestCases: async (jobId) => {
-    const response = await api.get(`/jobs/${jobId}/test-cases`)
+    const response = await api.get(`/api/jobs/${jobId}/test-cases`)
     return response.data
   },
 
   getResults: async (jobId) => {
-    const response = await api.get(`/jobs/${jobId}/results`)
+    const response = await api.get(`/api/jobs/${jobId}/results`)
     return response.data
   },
 
   downloadFile: (jobId, fileType) => {
-    return `${API_BASE_URL}/jobs/${jobId}/download/${fileType}`
+    return `${API_BASE_URL}/api/jobs/${jobId}/download/${fileType}`
   },
 }
 
