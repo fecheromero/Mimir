@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # Celery
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/0"
+    enable_celery_worker: bool = True  # Set to False to disable Celery worker (sync mode only)
 
     # Models
     test_case_agent_model: str = "claude-sonnet-4-5-20250929"
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra env vars not defined in model
 
 
 @lru_cache()
