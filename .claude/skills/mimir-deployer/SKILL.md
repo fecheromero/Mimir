@@ -12,9 +12,12 @@ This skill contains all the knowledge needed to deploy Mimir to a free-tier prod
 This guide focuses on **production deployment**. For other topics:
 
 - **Local Development**: See `local-development.md` for complete local setup
+- **CDP + ngrok Setup**: See `cdp-ngrok-setup.md` for using local browser with cloud backend
+- **Sync Mode**: See `sync-mode-implementation.md` for synchronous execution (no Celery)
 - **Alternative Platforms**: See `alternatives.md` for Railway, Fly.io, VPS options
 - **Troubleshooting**: See `troubleshooting.md` for common issues
 - **Environment Variables**: See `env-templates.md` for copy-paste ready configs
+- **Quick Start**: See `../../../CDP-QUICKSTART.md` in repo root for 2-minute CDP setup
 
 ## Architecture Overview
 
