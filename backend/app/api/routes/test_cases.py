@@ -415,7 +415,7 @@ async def execute_test_cases(request: ExecuteTestCasesRequest):
         return {"job_id": job_id, "status": "queued"}
 
 
-@router.post("/upload-and-execute", response_model=JobResponse)
+@router.post("/upload-and-execute")
 async def upload_and_execute(
     file: UploadFile = File(...),
     url: Optional[str] = Form(None),
@@ -423,7 +423,8 @@ async def upload_and_execute(
     user_password: Optional[str] = Form(None),
     browser_mode: Optional[str] = Form("new"),
     headless: Optional[bool] = Form(False),
-    cdp_url: Optional[str] = Form(None)
+    cdp_url: Optional[str] = Form(None),
+    sync: bool = Form(True)
 ):
     """
     Upload a previously generated test case file and execute it.
@@ -469,19 +470,32 @@ async def upload_and_execute(
         redis_client.hset(f"jobs:{job_id}", "created_at", datetime.utcnow().isoformat())
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
 
-        # Queue execution
-        execute_test_cases_task.delay(
-            job_id,
-            test_case_text,
-            url,
-            user_email,
-            user_password,
-            browser_mode,
-            headless,
-            cdp_url
-        )
-
-        return JobResponse(job_id=job_id, status="queued")
+        # Execute synchronously or queue task based on sync parameter
+        if sync:
+            # Execute immediately and return results
+            return await execute_sync_test(
+                job_id,
+                test_case_text,
+                url,
+                user_email,
+                user_password,
+                browser_mode,
+                headless,
+                cdp_url
+            )
+        else:
+            # Queue execution
+            execute_test_cases_task.delay(
+                job_id,
+                test_case_text,
+                url,
+                user_email,
+                user_password,
+                browser_mode,
+                headless,
+                cdp_url
+            )
+            return {"job_id": job_id, "status": "queued"}
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")
@@ -489,14 +503,15 @@ async def upload_and_execute(
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 
-@router.post("/upload-and-replay", response_model=JobResponse)
+@router.post("/upload-and-replay")
 async def upload_and_replay(
     file: UploadFile = File(...),
     user_email: Optional[str] = Form(None),
     user_password: Optional[str] = Form(None),
     browser_mode: Optional[str] = Form("new"),
     headless: Optional[bool] = Form(False),
-    cdp_url: Optional[str] = Form(None)
+    cdp_url: Optional[str] = Form(None),
+    sync: bool = Form(True)
 ):
     """
     Upload a replay actions file and execute it.
@@ -538,22 +553,38 @@ async def upload_and_replay(
         redis_client.hset(f"jobs:{job_id}", "created_at", datetime.utcnow().isoformat())
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
 
-        # Queue replay task
-        replay_actions_task.delay(
-            job_id,
-            actions,
-            url,
-            user_email,
-            user_password,
-            test_case_text,
-            test_expectations,
-            expected_outcome,
-            browser_mode,
-            headless,
-            cdp_url
-        )
-
-        return JobResponse(job_id=job_id, status="queued")
+        # Execute synchronously or queue task based on sync parameter
+        if sync:
+            # Execute immediately and return results
+            return await execute_sync_replay(
+                job_id,
+                actions,
+                url,
+                user_email,
+                user_password,
+                test_case_text,
+                test_expectations,
+                expected_outcome,
+                browser_mode,
+                headless,
+                cdp_url
+            )
+        else:
+            # Queue replay task
+            replay_actions_task.delay(
+                job_id,
+                actions,
+                url,
+                user_email,
+                user_password,
+                test_case_text,
+                test_expectations,
+                expected_outcome,
+                browser_mode,
+                headless,
+                cdp_url
+            )
+            return {"job_id": job_id, "status": "queued"}
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file")

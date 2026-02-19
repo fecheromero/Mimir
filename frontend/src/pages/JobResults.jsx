@@ -77,9 +77,7 @@ export default function JobResults() {
         generationData.url,
         generationData.userEmail,
         generationData.userPassword,
-        browserSettings.browserMode,
-        browserSettings.headless,
-        browserSettings.cdpUrl
+        browserSettings.headless
       )
 
       // Navigate to execution job

@@ -4,61 +4,76 @@ Mimir is an automated testing platform that uses AI to generate and execute test
 
 ## Features
 
-- 🤖 AI-powered test case generation from ticket descriptions
-- 🌐 Automated browser testing using browser_use
+- 🤖 AI-powered test case generation from ticket descriptions (Claude or GPT)
+- 🌐 Automated browser testing using browser-use + Playwright
 - 📊 Detailed test reports in Markdown
 - 💾 Download/upload test cases for re-execution
-- 🔒 SSO authentication
-- 🚀 Async execution with Celery workers
+- 🔄 Replay functionality to re-run tests without LLM
+- 🎯 Portable app - no complex setup required
 
-## Architecture
-
-```
-Frontend (React) → Backend API (FastAPI) → Redis → Workers (Celery + browser_use)
-```
-
-## Quick Start
+## Quick Start (Portable App)
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Anthropic API Key
+- Python 3.11+
+- Node.js 18+
+- Anthropic or OpenAI API key
 
-### Run with Docker
+### Create & Run Portable App
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd Mimir
+# 1. Configure your API keys
+nano backend/.env  # Add ANTHROPIC_API_KEY or OPENAI_API_KEY
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your credentials
+# 2. Create portable app
+./create-portable-app.sh
 
-# Start services
-docker-compose up -d
-
-# Access at http://localhost:3000
+# 3. Run the app
+cd build/Mimir-Portable
+./start-mimir.sh
 ```
 
-### Development Setup
+The portable app will:
+- Auto-install Python dependencies (first run only, ~3-4 minutes)
+- Auto-install Node dependencies (first run only)
+- Start backend on http://localhost:3022
+- Start frontend on http://localhost:3023
+- Open browser automatically
 
-#### Backend
+**To stop**: Press `Ctrl+C` in the terminal
+
+## Development Setup
+
+If you want to develop on Mimir directly (without creating the portable app):
+
+### Backend
 
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+playwright install chromium
+
+# Configure .env file
+cp .env.example .env
+nano .env  # Add your API keys
+
+# Run the server
+uvicorn app.main:app --reload --port 3022
 ```
 
-#### Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev
+
+# Configure API URL
+echo "VITE_API_URL=http://localhost:3022" > .env
+
+# Run dev server
+npm run dev -- --port 3023
 ```
 
 ## Usage
@@ -106,11 +121,26 @@ Mimir/
 
 ## Environment Variables
 
+Edit `backend/.env`:
+
 ```env
-ANTHROPIC_API_KEY=your_api_key
-REDIS_URL=redis://redis:6379
-SSO_CLIENT_ID=your_sso_client_id
-SSO_CLIENT_SECRET=your_sso_secret
+# LLM Provider (choose one)
+LLM_PROVIDER=anthropic  # or "openai"
+
+# API Keys (at least one required)
+ANTHROPIC_API_KEY=your_anthropic_key_here
+OPENAI_API_KEY=your_openai_key_here
+
+# Browser Execution Mode
+BROWSER_EXECUTION_MODE=local  # local or cloud
+
+# Optional: Specific models
+TEST_CASE_AGENT_MODEL=claude-sonnet-4-5-20250929
+QA_AGENT_MODEL=claude-sonnet-4-5-20250929
+OPENAI_MODEL=gpt-4o-mini
+
+# Sync mode (portable app uses sync mode)
+ENABLE_CELERY_WORKER=false
 ```
 
 ## License

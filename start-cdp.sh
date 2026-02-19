@@ -7,17 +7,16 @@ set -e
 echo "🚀 Starting Mimir CDP Setup..."
 echo ""
 
-# Check if ngrok is installed
-if ! command -v ngrok &> /dev/null; then
-    echo "❌ ngrok not found!"
+# Check for SSH (for Serveo) - most systems have it
+TUNNEL_CMD="serveo"
+if ! command -v ssh &> /dev/null; then
+    echo "❌ SSH not found!"
     echo ""
-    echo "Please install ngrok:"
-    echo "  Mac:    brew install ngrok"
-    echo "  Linux:  snap install ngrok"
-    echo "  Or download from: https://ngrok.com/download"
-    echo ""
+    echo "SSH is required for Serveo tunnel. Please install OpenSSH."
     exit 1
 fi
+
+echo "✅ Using Serveo (free TCP tunnel via SSH)"
 
 # Detect Chrome path based on OS
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -64,28 +63,29 @@ fi
 echo "✅ Chrome started (PID: $CHROME_PID)"
 echo ""
 
-# Start ngrok
-echo "🌐 Starting ngrok tunnel for port 9222..."
+# Start tunnel
+echo "🌐 Starting TCP tunnel for port 9222..."
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  📋 COPY THE CDP URL BELOW TO MIMIR FRONTEND"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  1. Look for the line: 'Forwarding https://XXXX.ngrok.io'"
-echo "  2. Copy that HTTPS URL (e.g., https://abc-123.ngrok.io)"
+
+echo "  1. Look for: 'Forwarding HTTP traffic from https://XXXXX.serveo.net'"
+echo "  2. Copy that HTTPS URL (e.g., https://abc123.serveo.net)"
 echo "  3. In Mimir frontend:"
 echo "     - Browser Mode: Select 'Existing (CDP)'"
-echo "     - CDP URL: Paste the ngrok HTTPS URL"
-echo "  4. Execute your test - it will run in the Chrome window above!"
+echo "     - CDP URL: Paste the Serveo HTTPS URL"
+echo "  4. Execute your test!"
 echo ""
-echo "  Note: Using HTTP tunnel (free, no time limits!) ✨"
+echo "  Note: Serveo uses SSH (already installed), 100% free!"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Start ngrok in foreground (blocks until Ctrl+C)
-# Using HTTP tunnel instead of TCP - completely free!
-ngrok http 9222
+# Use Serveo with HTTP tunnel (automatic random subdomain)
+# This avoids port conflicts and works better for CDP
+ssh -R 80:localhost:9222 serveo.net
 
 # Cleanup on exit (Ctrl+C)
 echo ""

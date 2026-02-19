@@ -17,28 +17,26 @@ export const testCasesApi = {
     return response.data
   },
 
-  execute: async (testCaseText, url, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
+  execute: async (testCaseText, url, userEmail = null, userPassword = null, headless = false) => {
     const response = await api.post('/api/test-cases/execute', {
       test_case_text: testCaseText,
       url,
       user_email: userEmail,
       user_password: userPassword,
-      browser_mode: browserMode,
+      browser_mode: 'new',
       headless: headless,
-      cdp_url: cdpUrl,
     })
     return response.data
   },
 
-  uploadAndExecute: async (file, url, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
+  uploadAndExecute: async (file, url, userEmail = null, userPassword = null, headless = false) => {
     const formData = new FormData()
     formData.append('file', file)
     if (url) formData.append('url', url)
     if (userEmail) formData.append('user_email', userEmail)
     if (userPassword) formData.append('user_password', userPassword)
-    formData.append('browser_mode', browserMode)
+    formData.append('browser_mode', 'new')
     formData.append('headless', headless)
-    if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
     const response = await api.post('/api/test-cases/upload-and-execute', formData, {
       headers: {
@@ -48,14 +46,13 @@ export const testCasesApi = {
     return response.data
   },
 
-  uploadAndReplay: async (file, userEmail = null, userPassword = null, browserMode = 'new', headless = false, cdpUrl = null) => {
+  uploadAndReplay: async (file, userEmail = null, userPassword = null, headless = false) => {
     const formData = new FormData()
     formData.append('file', file)
     if (userEmail) formData.append('user_email', userEmail)
     if (userPassword) formData.append('user_password', userPassword)
-    formData.append('browser_mode', browserMode)
+    formData.append('browser_mode', 'new')
     formData.append('headless', headless)
-    if (cdpUrl) formData.append('cdp_url', cdpUrl)
 
     const response = await api.post('/api/test-cases/upload-and-replay', formData, {
       headers: {
@@ -73,9 +70,7 @@ export const testCasesApi = {
     testCaseText = null,
     testExpectations = null,
     expectedOutcome = null,
-    browserMode = 'new',
-    headless = false,
-    cdpUrl = null
+    headless = false
   ) => {
     const response = await api.post('/api/test-cases/replay-actions', {
       actions,
@@ -85,9 +80,8 @@ export const testCasesApi = {
       test_case_text: testCaseText,
       test_expectations: testExpectations,
       expected_outcome: expectedOutcome,
-      browser_mode: browserMode,
+      browser_mode: 'new',
       headless: headless,
-      cdp_url: cdpUrl,
     })
     return response.data
   },

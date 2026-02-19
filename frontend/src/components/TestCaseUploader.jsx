@@ -8,9 +8,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
   const [userEmail, setUserEmail] = useState('')
   const [userPassword, setUserPassword] = useState('')
   const [showCredentials, setShowCredentials] = useState(false)
-  const [browserMode, setBrowserMode] = useState('new')
   const [headless, setHeadless] = useState(false)
-  const [cdpUrl, setCdpUrl] = useState('http://localhost:9222')
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
@@ -32,9 +30,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
       url,
       userEmail: showCredentials ? userEmail : null,
       userPassword: showCredentials ? userPassword : null,
-      browserMode,
       headless,
-      cdpUrl: browserMode === 'existing' ? cdpUrl : null,
     })
   }
 
@@ -127,12 +123,8 @@ export default function TestCaseUploader({ onUpload, loading }) {
         )}
 
         <BrowserSettings
-          browserMode={browserMode}
-          setBrowserMode={setBrowserMode}
           headless={headless}
           setHeadless={setHeadless}
-          cdpUrl={cdpUrl}
-          setCdpUrl={setCdpUrl}
           disabled={loading}
         />
 

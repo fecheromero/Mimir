@@ -4,17 +4,13 @@ import { Download, Play } from 'lucide-react'
 import BrowserSettings from './BrowserSettings'
 
 export default function TestCaseViewer({ testCases, onExecute, onDownload, executing }) {
-  const [browserMode, setBrowserMode] = useState('new')
   const [headless, setHeadless] = useState(false)
-  const [cdpUrl, setCdpUrl] = useState('http://localhost:9222')
 
   if (!testCases) return null
 
   const handleExecute = () => {
     onExecute({
-      browserMode,
-      headless,
-      cdpUrl: browserMode === 'existing' ? cdpUrl : null
+      headless
     })
   }
 
@@ -48,12 +44,8 @@ export default function TestCaseViewer({ testCases, onExecute, onDownload, execu
       </div>
 
       <BrowserSettings
-        browserMode={browserMode}
-        setBrowserMode={setBrowserMode}
         headless={headless}
         setHeadless={setHeadless}
-        cdpUrl={cdpUrl}
-        setCdpUrl={setCdpUrl}
         disabled={executing}
       />
 
