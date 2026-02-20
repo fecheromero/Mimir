@@ -1,28 +1,45 @@
 """
 PR Review Agent - Generates code reviews using LLM.
 """
-from typing import Optional
+import os
+from typing import Optional, Dict
 from ..core.llm_factory import get_llm_for_test_generation
 
 
 class PRReviewAgent:
     """Agent for generating PR reviews using LLM."""
 
-    def __init__(self, model: Optional[str] = None):
+    RULES_FILE_PATH = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "REVIEWER_RULES.md"
+    )
+
+    def __init__(self):
         """
         Initialize PR Review Agent.
-
-        Args:
-            model: Optional model name override
         """
-        self.llm_client = get_llm_for_test_generation(model_override=model)
+        self.llm_client = get_llm_for_test_generation()
+        self.reviewer_rules = self._load_reviewer_rules()
         self.system_prompt = self._build_system_prompt()
+
+    def _load_reviewer_rules(self) -> str:
+        """Load reviewer rules from markdown file."""
+        try:
+            with open(self.RULES_FILE_PATH, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            # Return default rules if file doesn't exist
+            return "# No custom rules defined yet.\nUse general code review best practices."
 
     def _build_system_prompt(self) -> str:
         """Build system prompt for PR review."""
-        return """You are an expert code reviewer. Your task is to review pull requests and provide constructive feedback.
+        return f"""You are an expert code reviewer. Your task is to review pull requests and provide constructive feedback.
 
-**Review Guidelines:**
+**Custom Review Guidelines:**
+
+{self.reviewer_rules}
+
+---
 
 1. **Code Quality:**
    - Check for code clarity, readability, and maintainability
@@ -182,3 +199,89 @@ Be constructive, specific, and actionable. Focus on teaching, not just pointing 
         prompt_parts.append("Please review this pull request following the guidelines provided.")
 
         return "\n".join(prompt_parts)
+
+    def suggest_rule_improvements(
+        self,
+        pr_info: dict,
+        review_text: str,
+        diff: str
+    ) -> Optional[Dict[str, str]]:
+        """
+        Ask LLM to suggest improvements to reviewer rules based on review experience.
+
+        Args:
+            pr_info: PR metadata
+            review_text: The review that was just generated
+            diff: The diff that was reviewed
+
+        Returns:
+            Dict with 'suggestion' (new rule text) and 'rationale' or None if no suggestions
+        """
+        system_prompt = """You are a code review expert helping to improve review guidelines.
+
+Based on the PR you just reviewed, determine if there are any new patterns, issues, or best practices
+that should be added to the review guidelines to make future reviews better.
+
+Only suggest additions if:
+1. You encountered something not covered by current guidelines
+2. The addition would be valuable for future reviews
+3. It's specific and actionable
+
+If no improvements are needed, respond with: NO_SUGGESTIONS
+
+If you have a suggestion, respond in this exact format:
+
+SUGGESTION:
+[The new guideline text in markdown format]
+
+RATIONALE:
+[Why this should be added - reference specific aspects from the PR you reviewed]
+"""
+
+        user_prompt = f"""Current reviewer guidelines:
+
+{self.reviewer_rules}
+
+---
+
+I just reviewed this PR:
+
+**Repository:** {pr_info.get('repo', 'N/A')}
+**Title:** {pr_info.get('title', 'N/A')}
+**Files changed:** {pr_info.get('changed_files', 0)}
+
+My review covered these aspects:
+{review_text[:1000]}...
+
+Based on this experience, should we add anything to our reviewer guidelines?
+"""
+
+        messages = [
+            {"role": "user", "content": user_prompt}
+        ]
+
+        response = self.llm_client.messages.create(
+            model=self.llm_client.model,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=messages
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Parse response
+        if "NO_SUGGESTIONS" in response_text:
+            return None
+
+        # Extract suggestion and rationale
+        if "SUGGESTION:" in response_text and "RATIONALE:" in response_text:
+            parts = response_text.split("RATIONALE:")
+            suggestion_part = parts[0].replace("SUGGESTION:", "").strip()
+            rationale_part = parts[1].strip() if len(parts) > 1 else ""
+
+            return {
+                "suggestion": suggestion_part,
+                "rationale": rationale_part
+            }
+
+        return None

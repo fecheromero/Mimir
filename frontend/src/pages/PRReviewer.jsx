@@ -9,8 +9,6 @@ export default function PRReviewer() {
   const [loading, setLoading] = useState(true)
   const [addingPR, setAddingPR] = useState(false)
   const [prUrl, setPrUrl] = useState('')
-  const [githubToken, setGithubToken] = useState('')
-  const [useToken, setUseToken] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -38,12 +36,10 @@ export default function PRReviewer() {
       setAddingPR(true)
       setError(null)
 
-      await prReviewsApi.watchPR(prUrl, useToken ? githubToken : null)
+      await prReviewsApi.watchPR(prUrl)
 
       // Reset form
       setPrUrl('')
-      setGithubToken('')
-      setUseToken(false)
 
       // Reload list
       await loadWatchedPRs()
@@ -108,35 +104,6 @@ export default function PRReviewer() {
                 required
               />
             </div>
-
-            {/* Optional GitHub Token */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="use-token"
-                checked={useToken}
-                onChange={(e) => setUseToken(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="use-token" className="text-sm text-gray-300">
-                Use GitHub token (optional, for private repos or higher rate limits)
-              </label>
-            </div>
-
-            {useToken && (
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  GitHub Personal Access Token
-                </label>
-                <input
-                  type="password"
-                  value={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                  placeholder="ghp_..."
-                  className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">

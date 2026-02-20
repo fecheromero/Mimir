@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
+import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3 } from 'lucide-react'
 import { prReviewsApi } from '../services/api'
 import ReactMarkdown from 'react-markdown'
 
@@ -15,6 +15,9 @@ export default function PRDetail() {
   const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(false)
   const [error, setError] = useState(null)
+  const [suggestionAction, setSuggestionAction] = useState(null) // 'approving' | 'rejecting' | null
+  const [editingSuggestion, setEditingSuggestion] = useState(false)
+  const [editedSuggestion, setEditedSuggestion] = useState('')
 
   useEffect(() => {
     loadPRDetails()
@@ -69,6 +72,59 @@ export default function PRDetail() {
     } finally {
       setReviewing(false)
     }
+  }
+
+  const handleApproveSuggestion = async () => {
+    try {
+      setSuggestionAction('approving')
+      const suggestionToSubmit = editingSuggestion ? editedSuggestion : null
+
+      await prReviewsApi.approveSuggestion(
+        decodedPrId,
+        selectedReview.review_id,
+        suggestionToSubmit
+      )
+
+      // Reload review to update suggestion status
+      await loadReviewContent(selectedReview.review_id)
+
+      // Reset edit state
+      setEditingSuggestion(false)
+      setEditedSuggestion('')
+
+      alert('Rule suggestion approved and applied!')
+    } catch (err) {
+      console.error('Error approving suggestion:', err)
+      alert('Failed to approve suggestion: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setSuggestionAction(null)
+    }
+  }
+
+  const handleRejectSuggestion = async () => {
+    try {
+      setSuggestionAction('rejecting')
+
+      await prReviewsApi.rejectSuggestion(
+        decodedPrId,
+        selectedReview.review_id
+      )
+
+      // Reload review to update suggestion status
+      await loadReviewContent(selectedReview.review_id)
+
+      alert('Rule suggestion rejected')
+    } catch (err) {
+      console.error('Error rejecting suggestion:', err)
+      alert('Failed to reject suggestion: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setSuggestionAction(null)
+    }
+  }
+
+  const handleEditSuggestion = () => {
+    setEditingSuggestion(true)
+    setEditedSuggestion(selectedReview.rule_suggestion?.suggestion || '')
   }
 
   const formatDate = (dateStr) => {
@@ -297,6 +353,131 @@ export default function PRDetail() {
                     {selectedReview.review_text}
                   </ReactMarkdown>
                 </div>
+
+                {/* Rule Suggestion Section */}
+                {selectedReview.rule_suggestion && (
+                  <div className="mt-8 pt-6 border-t border-gray-800">
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
+                      <div className="flex items-start gap-3 mb-4">
+                        <Lightbulb className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-1" />
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-yellow-400 mb-2">
+                            Reviewer Rule Suggestion
+                          </h3>
+                          <p className="text-gray-300 text-sm mb-4">
+                            The AI suggests adding this to the reviewer rules based on insights from this review:
+                          </p>
+
+                          {editingSuggestion ? (
+                            <div className="mb-4">
+                              <textarea
+                                value={editedSuggestion}
+                                onChange={(e) => setEditedSuggestion(e.target.value)}
+                                className="w-full h-32 bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-200 font-mono text-sm focus:outline-none focus:border-blue-500"
+                                placeholder="Edit the suggestion..."
+                              />
+                            </div>
+                          ) : (
+                            <div className="bg-gray-900/50 rounded-lg p-4 mb-4">
+                              <pre className="text-gray-200 text-sm whitespace-pre-wrap font-mono">
+                                {selectedReview.rule_suggestion.suggestion}
+                              </pre>
+                            </div>
+                          )}
+
+                          {selectedReview.rule_suggestion.rationale && (
+                            <div className="mb-4">
+                              <p className="text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wide">
+                                Rationale:
+                              </p>
+                              <p className="text-gray-300 text-sm italic">
+                                {selectedReview.rule_suggestion.rationale}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex gap-3">
+                            {editingSuggestion ? (
+                              <>
+                                <button
+                                  onClick={handleApproveSuggestion}
+                                  disabled={suggestionAction === 'approving'}
+                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                                >
+                                  {suggestionAction === 'approving' ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsUp className="w-4 h-4" />
+                                      Approve Edited Version
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingSuggestion(false)
+                                    setEditedSuggestion('')
+                                  }}
+                                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={handleApproveSuggestion}
+                                  disabled={suggestionAction === 'approving'}
+                                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                                >
+                                  {suggestionAction === 'approving' ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      Approving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsUp className="w-4 h-4" />
+                                      Approve & Apply
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={handleEditSuggestion}
+                                  disabled={suggestionAction !== null}
+                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                  Edit Before Approving
+                                </button>
+                                <button
+                                  onClick={handleRejectSuggestion}
+                                  disabled={suggestionAction === 'rejecting'}
+                                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                                >
+                                  {suggestionAction === 'rejecting' ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      Rejecting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsDown className="w-4 h-4" />
+                                      Reject
+                                    </>
+                                  )}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-12 text-center">

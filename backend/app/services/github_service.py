@@ -19,7 +19,7 @@ class GitHubService:
                          If not provided, will use unauthenticated requests (rate limited).
         """
         settings = get_settings()
-        self.github_token = github_token or getattr(settings, 'GITHUB_TOKEN', None)
+        self.github_token = github_token or settings.github_token
         self.base_url = "https://api.github.com"
 
     def _get_headers(self) -> dict:

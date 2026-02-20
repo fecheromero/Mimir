@@ -132,6 +132,32 @@ JOB_RETENTION_HOURS=24
 
 ## Important Implementation Details
 
+### FastAPI Route Ordering (CRITICAL)
+**Routes with path parameters MUST be ordered from most specific to most generic.**
+
+FastAPI matches routes in the order they're defined. When using `{param:path}` (which captures slashes), more specific routes MUST come first:
+
+**CORRECT ORDER:**
+```python
+@router.get("/{pr_id:path}/reviews/{review_id}")  # ✅ Most specific - matches first
+@router.post("/{pr_id:path}/review")              # ✅ Specific
+@router.get("/{pr_id:path}")                       # ✅ Generic - matches last
+```
+
+**WRONG ORDER (causes 404 errors):**
+```python
+@router.get("/{pr_id:path}")                       # ❌ Catches everything, including /reviews/...
+@router.get("/{pr_id:path}/reviews/{review_id}")  # ❌ Never reached!
+```
+
+**Why this matters:**
+- `{pr_id:path}` captures the ENTIRE remaining path including slashes
+- If placed first, it will match `/owner/repo/123/reviews/abc` as `pr_id="owner/repo/123/reviews/abc"`
+- More specific routes like `/{pr_id:path}/reviews/{review_id}` will never be reached
+
+**Files affected:**
+- `backend/app/api/routes/pr_reviews.py` - PR reviewer routes use this pattern
+
 ### CDP (Chrome DevTools Protocol) Configuration
 - CDP URL is **NOT** configured in .env (it was removed)
 - CDP URL is passed dynamically from frontend forms when browser_mode="existing"

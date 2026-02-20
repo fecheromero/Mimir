@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     # API Keys
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
+    github_token: Optional[str] = None
 
     # OpenAI
     openai_model: str = "gpt-4o-mini"  # or "gpt-4o", "gpt-4-turbo"

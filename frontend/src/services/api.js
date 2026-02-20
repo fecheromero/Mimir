@@ -109,10 +109,9 @@ export const jobsApi = {
 }
 
 export const prReviewsApi = {
-  watchPR: async (prUrl, githubToken = null) => {
+  watchPR: async (prUrl) => {
     const response = await api.post('/api/pr-reviews/watch', {
       pr_url: prUrl,
-      github_token: githubToken,
     })
     return response.data
   },
@@ -123,26 +122,55 @@ export const prReviewsApi = {
   },
 
   getPRDetails: async (prId) => {
-    const response = await api.get(`/api/pr-reviews/${prId}`)
+    const response = await api.get(`/api/pr-reviews/${encodeURIComponent(prId)}`)
     return response.data
   },
 
-  triggerReview: async (prId, githubToken = null) => {
-    const response = await api.post(`/api/pr-reviews/${prId}/review`, {
+  triggerReview: async (prId) => {
+    const response = await api.post(`/api/pr-reviews/${encodeURIComponent(prId)}/review`, {
       pr_id: prId,
-      github_token: githubToken,
       sync: true,
     })
     return response.data
   },
 
   getReview: async (prId, reviewId) => {
-    const response = await api.get(`/api/pr-reviews/${prId}/reviews/${reviewId}`)
+    const response = await api.get(`/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}`)
     return response.data
   },
 
   unwatchPR: async (prId) => {
-    const response = await api.delete(`/api/pr-reviews/${prId}`)
+    const response = await api.delete(`/api/pr-reviews/${encodeURIComponent(prId)}`)
+    return response.data
+  },
+
+  getReviewerRules: async () => {
+    const response = await api.get('/api/pr-reviews/reviewer-rules')
+    return response.data
+  },
+
+  approveSuggestion: async (prId, reviewId, editedSuggestion = null) => {
+    const response = await api.post('/api/pr-reviews/reviewer-rules/approve-suggestion', {
+      pr_id: prId,
+      review_id: reviewId,
+      edited_suggestion: editedSuggestion,
+    })
+    return response.data
+  },
+
+  rejectSuggestion: async (prId, reviewId, reason = null) => {
+    const response = await api.post('/api/pr-reviews/reviewer-rules/reject-suggestion', {
+      pr_id: prId,
+      review_id: reviewId,
+      reason,
+    })
+    return response.data
+  },
+
+  updateReviewerRules: async (rulesContent) => {
+    const response = await api.put('/api/pr-reviews/reviewer-rules', {
+      rules_content: rulesContent,
+    })
     return response.data
   },
 }

@@ -14,6 +14,7 @@ app = FastAPI(
 # CORS middleware
 origins = [
     "http://localhost:3000",
+    "http://localhost:3023",
     "http://localhost:5173",  # Vite dev server
 ]
 

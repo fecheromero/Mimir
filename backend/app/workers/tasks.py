@@ -621,14 +621,13 @@ Total actions: {len(actions)}
 
 
 @celery_app.task(bind=True)
-def review_pr_task(self, review_id: str, pr_id: str, github_token: str = None):
+def review_pr_task(self, review_id: str, pr_id: str):
     """
     Celery task to generate PR review using LLM.
 
     Args:
         review_id: Unique review identifier
         pr_id: PR identifier (owner/repo/number)
-        github_token: Optional GitHub token for API access
     """
     logger = logging.getLogger(__name__)
     logger.info(f"[Review {review_id}] Starting PR review task for PR {pr_id}")
@@ -654,7 +653,7 @@ def review_pr_task(self, review_id: str, pr_id: str, github_token: str = None):
 
         # Parse PR URL
         from app.services.github_service import GitHubService
-        github_service = GitHubService(github_token=github_token)
+        github_service = GitHubService()
         owner, repo, pr_number = github_service.parse_pr_url(pr_info["url"])
 
         redis_client.hset(f"pr_review:{review_id}", "progress", 20)

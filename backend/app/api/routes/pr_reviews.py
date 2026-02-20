@@ -21,13 +21,11 @@ router = APIRouter()
 class WatchPRRequest(BaseModel):
     """Request to add a PR to watch list."""
     pr_url: str
-    github_token: Optional[str] = None
 
 
 class ReviewPRRequest(BaseModel):
     """Request to trigger a new PR review."""
     pr_id: str
-    github_token: Optional[str] = None
     sync: bool = True  # Execute synchronously by default
 
 
@@ -55,7 +53,7 @@ class ReviewResponse(BaseModel):
     review_text: Optional[str] = None
 
 
-async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) -> dict:
+async def execute_sync_review(pr_id: str) -> dict:
     """
     Execute PR review synchronously without Celery.
     Returns review results immediately.
@@ -76,7 +74,7 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
         pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
 
         # Parse PR URL to get owner, repo, number
-        github_service = GitHubService(github_token=github_token)
+        github_service = GitHubService()
         owner, repo, pr_number = github_service.parse_pr_url(pr_info["url"])
 
         # Update review status
@@ -107,6 +105,16 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
         )
 
         # Update progress
+        redis_client.hset(f"pr_review:{review_id}", "progress", 70)
+
+        # Ask LLM for rule improvement suggestions
+        rule_suggestion = review_agent.suggest_rule_improvements(
+            pr_info=pr_info,
+            review_text=review_text,
+            diff=diff
+        )
+
+        # Update progress
         redis_client.hset(f"pr_review:{review_id}", "progress", 80)
 
         # Save review to storage
@@ -117,7 +125,8 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
             "pr_url": pr_info["url"],
             "created_at": datetime.utcnow().isoformat(),
             "review_text": review_text,
-            "status": "completed"
+            "status": "completed",
+            "rule_suggestion": rule_suggestion
         }
 
         # Save to file storage
@@ -127,14 +136,17 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
         redis_client.rpush(f"pr:{pr_id}:reviews", review_id)
 
         # Update review status
-        redis_client.hset(
-            f"pr_review:{review_id}",
-            mapping={
-                "status": "completed",
-                "progress": 100,
-                "review_text_preview": review_text[:500]  # Store preview in Redis
-            }
-        )
+        review_status_data = {
+            "status": "completed",
+            "progress": 100,
+            "review_text_preview": review_text[:500]  # Store preview in Redis
+        }
+
+        # Add suggestion flag if present
+        if rule_suggestion:
+            review_status_data["has_rule_suggestion"] = "true"
+
+        redis_client.hset(f"pr_review:{review_id}", mapping=review_status_data)
         redis_client.expire(f"pr_review:{review_id}", settings.job_retention_hours * 3600)
 
         return {
@@ -142,7 +154,8 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
             "pr_id": pr_id,
             "status": "completed",
             "created_at": review_data["created_at"],
-            "review_text": review_text
+            "review_text": review_text,
+            "rule_suggestion": rule_suggestion
         }
 
     except Exception as e:
@@ -159,6 +172,182 @@ async def execute_sync_review(pr_id: str, github_token: Optional[str] = None) ->
         raise HTTPException(status_code=500, detail=error_msg)
 
 
+# ============================================================================
+# Reviewer Rules Management Endpoints (MUST be before dynamic /{pr_id} routes)
+# ============================================================================
+
+class ApproveSuggestionRequest(BaseModel):
+    """Request to approve a rule suggestion."""
+    pr_id: str
+    review_id: str
+    edited_suggestion: Optional[str] = None  # User can edit before approving
+
+
+class RejectSuggestionRequest(BaseModel):
+    """Request to reject a rule suggestion."""
+    pr_id: str
+    review_id: str
+    reason: Optional[str] = None
+
+
+class UpdateRulesRequest(BaseModel):
+    """Request to manually update reviewer rules."""
+    rules_content: str
+
+
+@router.get("/reviewer-rules")
+async def get_reviewer_rules():
+    """
+    Get current reviewer rules.
+
+    Returns:
+        Current rules content
+    """
+    try:
+        from app.services.pr_review_agent import PRReviewAgent
+
+        with open(PRReviewAgent.RULES_FILE_PATH, 'r', encoding='utf-8') as f:
+            rules_content = f.read()
+
+        return {
+            "rules": rules_content,
+            "file_path": PRReviewAgent.RULES_FILE_PATH
+        }
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Reviewer rules file not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading rules: {str(e)}")
+
+
+@router.post("/reviewer-rules/approve-suggestion")
+async def approve_rule_suggestion(request: ApproveSuggestionRequest):
+    """
+    Approve and apply a rule suggestion to the reviewer rules file.
+
+    Args:
+        request: Approval request with optional edits
+
+    Returns:
+        Success message with updated rules
+    """
+    try:
+        from app.services.pr_review_agent import PRReviewAgent
+        from app.services.storage_service import StorageService
+
+        # Load the review to get the suggestion
+        storage = StorageService()
+        review_data = storage.load_pr_review(request.pr_id, request.review_id)
+
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        rule_suggestion = review_data.get("rule_suggestion")
+        if not rule_suggestion:
+            raise HTTPException(status_code=400, detail="No rule suggestion found in this review")
+
+        # Use edited version if provided, otherwise use original suggestion
+        suggestion_to_add = request.edited_suggestion or rule_suggestion.get("suggestion", "")
+
+        if not suggestion_to_add:
+            raise HTTPException(status_code=400, detail="No suggestion content to add")
+
+        # Read current rules
+        with open(PRReviewAgent.RULES_FILE_PATH, 'r', encoding='utf-8') as f:
+            current_rules = f.read()
+
+        # Append new suggestion (before the final note)
+        if "---\n\n**Note**:" in current_rules:
+            parts = current_rules.split("---\n\n**Note**:")
+            updated_rules = f"{parts[0]}\n## Additional Guidelines\n\n{suggestion_to_add}\n\n---\n\n**Note**:{parts[1]}"
+        else:
+            updated_rules = f"{current_rules}\n\n## Additional Guidelines\n\n{suggestion_to_add}\n"
+
+        # Write updated rules
+        with open(PRReviewAgent.RULES_FILE_PATH, 'w', encoding='utf-8') as f:
+            f.write(updated_rules)
+
+        # Mark suggestion as applied in Redis
+        redis_client.hset(f"pr_review:{request.review_id}", "rule_suggestion_status", "approved")
+
+        return {
+            "message": "Rule suggestion approved and applied",
+            "updated_rules": updated_rules
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error approving suggestion: {str(e)}")
+
+
+@router.post("/reviewer-rules/reject-suggestion")
+async def reject_rule_suggestion(request: RejectSuggestionRequest):
+    """
+    Reject a rule suggestion.
+
+    Args:
+        request: Rejection request with optional reason
+
+    Returns:
+        Success message
+    """
+    try:
+        # Mark suggestion as rejected in Redis
+        redis_client.hset(
+            f"pr_review:{request.review_id}",
+            mapping={
+                "rule_suggestion_status": "rejected",
+                "rejection_reason": request.reason or ""
+            }
+        )
+
+        return {
+            "message": "Rule suggestion rejected",
+            "review_id": request.review_id
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rejecting suggestion: {str(e)}")
+
+
+@router.put("/reviewer-rules")
+async def update_reviewer_rules(request: UpdateRulesRequest):
+    """
+    Manually update reviewer rules (for direct editing by user).
+
+    Args:
+        request: New rules content
+
+    Returns:
+        Success message
+    """
+    try:
+        from app.services.pr_review_agent import PRReviewAgent
+
+        # Validate content is not empty
+        if not request.rules_content.strip():
+            raise HTTPException(status_code=400, detail="Rules content cannot be empty")
+
+        # Write new rules
+        with open(PRReviewAgent.RULES_FILE_PATH, 'w', encoding='utf-8') as f:
+            f.write(request.rules_content)
+
+        return {
+            "message": "Reviewer rules updated successfully",
+            "rules": request.rules_content
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating rules: {str(e)}")
+
+
+# ============================================================================
+# PR Management Endpoints
+# ============================================================================
+
 @router.post("/watch")
 async def watch_pr(request: WatchPRRequest):
     """
@@ -172,7 +361,7 @@ async def watch_pr(request: WatchPRRequest):
     """
     try:
         # Parse and validate PR URL
-        github_service = GitHubService(github_token=request.github_token)
+        github_service = GitHubService()
         owner, repo, pr_number = github_service.parse_pr_url(request.pr_url)
 
         # Fetch PR info from GitHub
@@ -190,7 +379,13 @@ async def watch_pr(request: WatchPRRequest):
             "watching_since": datetime.utcnow().isoformat()
         }
 
-        redis_client.hset(f"pr:{pr_id}", mapping=pr_data)
+        # Convert all values to strings (Redis doesn't accept None)
+        pr_data_for_redis = {
+            k: str(v) if v is not None else ""
+            for k, v in pr_data.items()
+        }
+
+        redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
         redis_client.expire(f"pr:{pr_id}", settings.job_retention_hours * 3600 * 30)  # 30 days
 
         # Add to watched list
@@ -249,7 +444,132 @@ async def get_watched_prs():
         raise HTTPException(status_code=500, detail=f"Error fetching watched PRs: {str(e)}")
 
 
-@router.get("/{pr_id}")
+# ============================================================================
+# Specific PR routes (MUST be before generic /{pr_id:path} route)
+# ============================================================================
+
+@router.get("/{pr_id:path}/reviews/{review_id}")
+async def get_review(pr_id: str, review_id: str):
+    """
+    Get a specific review result.
+
+    Args:
+        pr_id: PR identifier
+        review_id: Review identifier
+
+    Returns:
+        Full review data including review text
+    """
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"=== GET REVIEW DEBUG ===")
+        logger.info(f"Raw pr_id received: {repr(pr_id)}")
+        logger.info(f"Raw review_id received: {repr(review_id)}")
+        logger.info(f"pr_id type: {type(pr_id)}")
+        logger.info(f"pr_id length: {len(pr_id)}")
+
+        # Get review from storage (don't verify PR in Redis - it might have been unwatched)
+        from app.services.storage_service import StorageService
+        storage = StorageService()
+
+        # Build expected path
+        review_dir = storage.base_path / "pr_reviews" / pr_id / review_id
+        file_path = review_dir / "review.json"
+        logger.info(f"Looking for file at: {file_path}")
+        logger.info(f"File exists: {file_path.exists()}")
+
+        review_data = storage.load_pr_review(pr_id, review_id)
+
+        if not review_data:
+            # Debug: try to find the review file
+            logger.error(f"Review not found. Searched in: {review_dir}")
+            logger.error(f"Directory exists: {review_dir.exists()}")
+
+            # List actual directory structure
+            pr_reviews_dir = storage.base_path / "pr_reviews"
+            logger.error(f"PR reviews base dir: {pr_reviews_dir}")
+            if pr_reviews_dir.exists():
+                subdirs = list(pr_reviews_dir.iterdir())
+                logger.error(f"Available PR directories: {[str(d) for d in subdirs]}")
+
+            if review_dir.exists():
+                files = list(review_dir.iterdir())
+                logger.error(f"Files in directory: {files}")
+            raise HTTPException(status_code=404, detail=f"Review not found at: {file_path}")
+
+        logger.info(f"Successfully loaded review {review_id}")
+        return review_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching review: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error fetching review: {str(e)}")
+
+
+@router.post("/{pr_id:path}/review")
+async def trigger_review(pr_id: str, request: ReviewPRRequest):
+    """
+    Trigger a new review for a PR.
+
+    Args:
+        pr_id: PR identifier
+        request: Review configuration
+
+    Returns:
+        Review job information
+    """
+    try:
+        # Verify PR exists
+        if not redis_client.exists(f"pr:{pr_id}"):
+            raise HTTPException(status_code=404, detail="PR not found")
+
+        # Validate pr_id matches request
+        if request.pr_id != pr_id:
+            raise HTTPException(status_code=400, detail="PR ID mismatch")
+
+        if request.sync:
+            # Execute immediately and return results
+            return await execute_sync_review(pr_id)
+        else:
+            # Queue Celery task (async execution)
+            review_id = str(uuid.uuid4())
+
+            # Store initial review status
+            redis_client.hset(
+                f"pr_review:{review_id}",
+                mapping={
+                    "pr_id": pr_id,
+                    "status": "queued",
+                    "created_at": datetime.utcnow().isoformat(),
+                    "progress": 0
+                }
+            )
+            redis_client.expire(f"pr_review:{review_id}", settings.job_retention_hours * 3600)
+
+            # Queue task
+            review_pr_task.delay(review_id, pr_id)
+
+            return {
+                "review_id": review_id,
+                "pr_id": pr_id,
+                "status": "queued"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error triggering review: {str(e)}")
+
+
+# ============================================================================
+# Generic PR routes (MUST be after specific routes)
+# ============================================================================
+
+@router.get("/{pr_id:path}")
 async def get_pr_details(pr_id: str):
     """
     Get detailed information about a specific PR including review history.
@@ -295,96 +615,7 @@ async def get_pr_details(pr_id: str):
         raise HTTPException(status_code=500, detail=f"Error fetching PR details: {str(e)}")
 
 
-@router.post("/{pr_id}/review")
-async def trigger_review(pr_id: str, request: ReviewPRRequest):
-    """
-    Trigger a new review for a PR.
-
-    Args:
-        pr_id: PR identifier
-        request: Review configuration
-
-    Returns:
-        Review job information
-    """
-    try:
-        # Verify PR exists
-        if not redis_client.exists(f"pr:{pr_id}"):
-            raise HTTPException(status_code=404, detail="PR not found")
-
-        # Validate pr_id matches request
-        if request.pr_id != pr_id:
-            raise HTTPException(status_code=400, detail="PR ID mismatch")
-
-        if request.sync:
-            # Execute immediately and return results
-            return await execute_sync_review(pr_id, request.github_token)
-        else:
-            # Queue Celery task (async execution)
-            review_id = str(uuid.uuid4())
-
-            # Store initial review status
-            redis_client.hset(
-                f"pr_review:{review_id}",
-                mapping={
-                    "pr_id": pr_id,
-                    "status": "queued",
-                    "created_at": datetime.utcnow().isoformat(),
-                    "progress": 0
-                }
-            )
-            redis_client.expire(f"pr_review:{review_id}", settings.job_retention_hours * 3600)
-
-            # Queue task
-            review_pr_task.delay(review_id, pr_id, request.github_token)
-
-            return {
-                "review_id": review_id,
-                "pr_id": pr_id,
-                "status": "queued"
-            }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error triggering review: {str(e)}")
-
-
-@router.get("/{pr_id}/reviews/{review_id}")
-async def get_review(pr_id: str, review_id: str):
-    """
-    Get a specific review result.
-
-    Args:
-        pr_id: PR identifier
-        review_id: Review identifier
-
-    Returns:
-        Full review data including review text
-    """
-    try:
-        # Verify PR exists
-        if not redis_client.exists(f"pr:{pr_id}"):
-            raise HTTPException(status_code=404, detail="PR not found")
-
-        # Get review from storage
-        from app.services.storage_service import StorageService
-        storage = StorageService()
-
-        review_data = storage.load_pr_review(pr_id, review_id)
-
-        if not review_data:
-            raise HTTPException(status_code=404, detail="Review not found")
-
-        return review_data
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching review: {str(e)}")
-
-
-@router.delete("/{pr_id}")
+@router.delete("/{pr_id:path}")
 async def unwatch_pr(pr_id: str):
     """
     Remove a PR from the watch list.
