@@ -64,73 +64,73 @@ export default function ResultsViewer({ results, jobId }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Test Results</h2>
-        <div className="flex space-x-2">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold text-[#111827]">Test Results</h2>
+        <div className="flex gap-2 flex-wrap justify-end">
           {results.replay_actions && results.replay_actions.length > 0 && (
             <>
               <button
                 onClick={executeReplay}
                 disabled={executing}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md"
               >
                 <Play className="w-4 h-4" />
-                <span>{executing ? 'Replaying...' : 'Execute Replay'}</span>
+                <span className="font-medium">{executing ? 'Replaying...' : 'Execute Replay'}</span>
               </button>
               <button
                 onClick={downloadReplayActions}
-                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
               >
                 <FileJson className="w-4 h-4" />
-                <span>Replay Actions</span>
+                <span className="font-medium">Replay Actions</span>
               </button>
             </>
           )}
           <a
             href={downloadUrl('results')}
             download
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
           >
             <FileJson className="w-4 h-4" />
-            <span>Results JSON</span>
+            <span className="font-medium">Results JSON</span>
           </a>
           <a
             href={downloadUrl('report')}
             download
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            className="flex items-center gap-2 px-4 py-2 bg-[#10B981] text-white rounded-lg hover:bg-green-700 transition-all shadow-sm hover:shadow-md"
           >
             <FileText className="w-4 h-4" />
-            <span>Report MD</span>
+            <span className="font-medium">Report MD</span>
           </a>
         </div>
       </div>
 
       {/* Test Report */}
-      <div className="border border-gray-200 rounded-md p-4 bg-gray-50 mb-6">
-        <h3 className="text-lg font-semibold mb-2">Test Report</h3>
+      <div className="border border-gray-200 rounded-lg p-6 bg-gradient-to-br from-gray-50 to-white mb-6">
+        <h3 className="text-lg font-semibold text-[#111827] mb-4">Test Report</h3>
         <div className="prose max-w-none">
           <ReactMarkdown>{results.final_result}</ReactMarkdown>
         </div>
       </div>
 
       {/* Actions Summary */}
-      <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-        <h3 className="text-lg font-semibold mb-2">Actions Performed</h3>
-        <div className="text-sm text-gray-700">
-          <p className="mb-2">Total actions: {results.actions?.length || 0}</p>
-          <details className="cursor-pointer">
-            <summary className="font-medium text-blue-600 hover:text-blue-700">
+      <div className="border border-gray-200 rounded-lg p-6 bg-gradient-to-br from-blue-50/30 to-white">
+        <h3 className="text-lg font-semibold text-[#111827] mb-4">Actions Performed</h3>
+        <div className="text-sm text-[#111827]">
+          <p className="mb-3 font-medium">Total actions: {results.actions?.length || 0}</p>
+          <details className="cursor-pointer group">
+            <summary className="font-medium text-[#3B82F6] hover:text-blue-700 transition-colors">
               View detailed actions
             </summary>
-            <pre className="mt-2 p-2 bg-white rounded border border-gray-200 overflow-x-auto text-xs">
+            <pre className="mt-3 p-4 bg-white rounded-lg border border-gray-200 overflow-x-auto text-xs shadow-inner">
               {JSON.stringify(results.actions, null, 2)}
             </pre>
           </details>
         </div>
       </div>
 
-      <div className="mt-4 text-sm text-gray-500">
+      <div className="mt-6 pt-6 border-t border-gray-200 text-sm text-[#6B7280] space-y-1">
         <p>Executed: {new Date(results.executed_at).toLocaleString()}</p>
         <p>URL: {results.url}</p>
       </div>

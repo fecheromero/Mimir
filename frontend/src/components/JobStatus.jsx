@@ -24,29 +24,29 @@ export default function JobStatus({ status, progress, currentStep }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
           {getStatusIcon()}
           <div>
-            <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor()}`}>
+            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${getStatusColor()}`}>
               {status.toUpperCase()}
             </span>
           </div>
         </div>
-        <span className="text-2xl font-bold text-gray-700">{progress}%</span>
+        <span className="text-3xl font-bold text-[#111827]">{progress}%</span>
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+      <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
         <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          className="bg-gradient-to-r from-[#3B82F6] to-blue-500 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* Current Step */}
-      <p className="text-sm text-gray-600">{currentStep}</p>
+      <p className="text-sm text-[#6B7280] leading-relaxed">{currentStep}</p>
     </div>
   )
 }

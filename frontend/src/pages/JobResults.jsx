@@ -107,39 +107,45 @@ export default function JobResults() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/')}
-        className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back to Dashboard</span>
-      </button>
+    <div className="p-8">
+      {/* Header with Back Button */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-[#6B7280] hover:text-[#111827] transition-colors mb-4"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back to Dashboard</span>
+        </button>
+        <h1 className="text-3xl font-bold text-[#111827]">Job Results</h1>
+      </div>
 
-      {/* Job Status */}
-      {status && (
-        <JobStatus
-          status={status.status}
-          progress={status.progress}
-          currentStep={status.current_step}
-        />
-      )}
+      {/* Main Content */}
+      <div className="max-w-6xl space-y-6">
+        {/* Job Status */}
+        {status && (
+          <JobStatus
+            status={status.status}
+            progress={status.progress}
+            currentStep={status.current_step}
+          />
+        )}
 
-      {/* Test Cases Viewer (only show for generation mode) */}
-      {mode === 'generate' && testCases && (
-        <TestCaseViewer
-          testCases={testCases}
-          onExecute={handleExecute}
-          onDownload={handleDownloadTestCases}
-          executing={executing}
-        />
-      )}
+        {/* Test Cases Viewer (only show for generation mode) */}
+        {mode === 'generate' && testCases && (
+          <TestCaseViewer
+            testCases={testCases}
+            onExecute={handleExecute}
+            onDownload={handleDownloadTestCases}
+            executing={executing}
+          />
+        )}
 
-      {/* Results Viewer (only show for execution mode or after execution) */}
-      {results && (
-        <ResultsViewer results={results} jobId={jobId} />
-      )}
+        {/* Results Viewer (only show for execution mode or after execution) */}
+        {results && (
+          <ResultsViewer results={results} jobId={jobId} />
+        )}
+      </div>
     </div>
   )
 }

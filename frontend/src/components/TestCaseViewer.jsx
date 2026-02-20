@@ -15,29 +15,29 @@ export default function TestCaseViewer({ testCases, onExecute, onDownload, execu
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-4">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Generated Test Cases</h2>
-        <div className="flex space-x-2">
+        <h2 className="text-2xl font-semibold text-[#111827]">Generated Test Cases</h2>
+        <div className="flex gap-3">
           <button
             onClick={onDownload}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            className="flex items-center gap-2 px-4 py-2 bg-[#6B7280] text-white rounded-lg hover:bg-gray-700 transition-all shadow-sm hover:shadow-md"
           >
             <Download className="w-4 h-4" />
-            <span>Download</span>
+            <span className="font-medium">Download</span>
           </button>
           <button
             onClick={handleExecute}
             disabled={executing}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400"
+            className="flex items-center gap-2 px-4 py-2 bg-[#10B981] text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-all shadow-sm hover:shadow-md"
           >
             <Play className="w-4 h-4" />
-            <span>{executing ? 'Executing...' : 'Execute Tests'}</span>
+            <span className="font-medium">{executing ? 'Executing...' : 'Execute Tests'}</span>
           </button>
         </div>
       </div>
 
-      <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+      <div className="border border-gray-200 rounded-lg p-6 bg-gradient-to-br from-gray-50 to-white">
         <div className="prose max-w-none">
           <ReactMarkdown>{testCases.test_case_text}</ReactMarkdown>
         </div>
@@ -49,7 +49,7 @@ export default function TestCaseViewer({ testCases, onExecute, onDownload, execu
         disabled={executing}
       />
 
-      <div className="mt-4 text-sm text-gray-500">
+      <div className="pt-4 border-t border-gray-200 text-sm text-[#6B7280] space-y-1">
         <p>Created: {new Date(testCases.created_at).toLocaleString()}</p>
         <p>Ticket ID: {testCases.ticket_id}</p>
       </div>
