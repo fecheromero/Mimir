@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
-import { TestTube2 } from 'lucide-react'
+import { TestTube2, GitPullRequest } from 'lucide-react'
 
 export default function Sidebar() {
   const location = useLocation()
-  const isActive = location.pathname === '/'
+  const isQAActive = location.pathname === '/'
+  const isPRActive = location.pathname.startsWith('/pr-reviewer')
 
   return (
     <aside className="w-64 bg-[#0F1419] min-h-screen flex flex-col">
@@ -57,17 +58,29 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 space-y-2">
         <Link
           to="/"
           className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-            isActive
+            isQAActive
               ? 'bg-blue-600 text-white'
               : 'text-gray-300 hover:bg-gray-800 hover:text-white'
           }`}
         >
           <TestTube2 className="w-5 h-5" />
           <span className="font-medium">QA Assistant</span>
+        </Link>
+
+        <Link
+          to="/pr-reviewer"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isPRActive
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+          }`}
+        >
+          <GitPullRequest className="w-5 h-5" />
+          <span className="font-medium">PR Reviewer</span>
         </Link>
       </nav>
 

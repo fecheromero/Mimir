@@ -108,4 +108,43 @@ export const jobsApi = {
   },
 }
 
+export const prReviewsApi = {
+  watchPR: async (prUrl, githubToken = null) => {
+    const response = await api.post('/api/pr-reviews/watch', {
+      pr_url: prUrl,
+      github_token: githubToken,
+    })
+    return response.data
+  },
+
+  getWatchedPRs: async () => {
+    const response = await api.get('/api/pr-reviews/watched')
+    return response.data
+  },
+
+  getPRDetails: async (prId) => {
+    const response = await api.get(`/api/pr-reviews/${prId}`)
+    return response.data
+  },
+
+  triggerReview: async (prId, githubToken = null) => {
+    const response = await api.post(`/api/pr-reviews/${prId}/review`, {
+      pr_id: prId,
+      github_token: githubToken,
+      sync: true,
+    })
+    return response.data
+  },
+
+  getReview: async (prId, reviewId) => {
+    const response = await api.get(`/api/pr-reviews/${prId}/reviews/${reviewId}`)
+    return response.data
+  },
+
+  unwatchPR: async (prId) => {
+    const response = await api.delete(`/api/pr-reviews/${prId}`)
+    return response.data
+  },
+}
+
 export default api

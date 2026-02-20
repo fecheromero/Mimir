@@ -127,6 +127,43 @@ class StorageService:
         file_path = job_dir / file_map[file_type]
         return file_path if file_path.exists() else None
 
+    def get_pr_review_dir(self, pr_id: str, review_id: str) -> Path:
+        """Get the directory path for a PR review."""
+        pr_review_dir = self.base_path / "pr_reviews" / pr_id / review_id
+        pr_review_dir.mkdir(parents=True, exist_ok=True)
+        return pr_review_dir
+
+    def save_pr_review(self, pr_id: str, review_id: str, review_data: Dict[str, Any]) -> str:
+        """
+        Save PR review to JSON file.
+
+        Args:
+            pr_id: PR identifier (owner/repo/number)
+            review_id: Review identifier
+            review_data: Review data including review_text
+
+        Returns:
+            File path
+        """
+        review_dir = self.get_pr_review_dir(pr_id, review_id)
+        file_path = review_dir / "review.json"
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(review_data, f, indent=2, ensure_ascii=False)
+
+        return str(file_path)
+
+    def load_pr_review(self, pr_id: str, review_id: str) -> Optional[Dict[str, Any]]:
+        """Load PR review from JSON file."""
+        review_dir = self.base_path / "pr_reviews" / pr_id / review_id
+        file_path = review_dir / "review.json"
+
+        if not file_path.exists():
+            return None
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
     def cleanup_old_jobs(self) -> int:
         """
         Delete job directories older than retention period.
@@ -140,6 +177,10 @@ class StorageService:
 
         for job_dir in self.base_path.iterdir():
             if not job_dir.is_dir():
+                continue
+
+            # Skip pr_reviews directory (has its own cleanup)
+            if job_dir.name == "pr_reviews":
                 continue
 
             # Check directory modification time
