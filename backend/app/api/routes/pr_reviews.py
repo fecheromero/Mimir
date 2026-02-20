@@ -565,6 +565,50 @@ async def trigger_review(pr_id: str, request: ReviewPRRequest):
         raise HTTPException(status_code=500, detail=f"Error triggering review: {str(e)}")
 
 
+@router.delete("/{pr_id:path}/reviews/{review_id}")
+async def delete_review(pr_id: str, review_id: str):
+    """
+    Delete a specific review.
+
+    Args:
+        pr_id: PR identifier
+        review_id: Review identifier
+
+    Returns:
+        Success message
+    """
+    try:
+        import logging
+        import shutil
+        logger = logging.getLogger(__name__)
+
+        # Delete from Redis
+        redis_client.delete(f"pr_review:{review_id}")
+
+        # Remove from PR's review list
+        redis_client.lrem(f"pr:{pr_id}:reviews", 0, review_id)
+
+        # Delete review files from storage
+        from app.services.storage_service import StorageService
+        storage = StorageService()
+        review_dir = storage.base_path / "pr_reviews" / pr_id / review_id
+
+        if review_dir.exists():
+            shutil.rmtree(review_dir)
+            logger.info(f"Deleted review directory: {review_dir}")
+
+        return {
+            "message": "Review deleted successfully",
+            "review_id": review_id
+        }
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error deleting review: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error deleting review: {str(e)}")
+
+
 # ============================================================================
 # Generic PR routes (MUST be after specific routes)
 # ============================================================================

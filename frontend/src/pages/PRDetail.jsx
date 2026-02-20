@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3 } from 'lucide-react'
+import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2 } from 'lucide-react'
 import { prReviewsApi } from '../services/api'
 import ReactMarkdown from 'react-markdown'
 
@@ -18,6 +18,7 @@ export default function PRDetail() {
   const [suggestionAction, setSuggestionAction] = useState(null) // 'approving' | 'rejecting' | null
   const [editingSuggestion, setEditingSuggestion] = useState(false)
   const [editedSuggestion, setEditedSuggestion] = useState('')
+  const [deletingReview, setDeletingReview] = useState(null) // review_id being deleted
 
   useEffect(() => {
     loadPRDetails()
@@ -125,6 +126,30 @@ export default function PRDetail() {
   const handleEditSuggestion = () => {
     setEditingSuggestion(true)
     setEditedSuggestion(selectedReview.rule_suggestion?.suggestion || '')
+  }
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setDeletingReview(reviewId)
+      await prReviewsApi.deleteReview(decodedPrId, reviewId)
+
+      // Clear selected review if it was deleted
+      if (selectedReview?.review_id === reviewId) {
+        setSelectedReview(null)
+      }
+
+      // Reload PR details to update review list
+      await loadPRDetails()
+    } catch (err) {
+      console.error('Error deleting review:', err)
+      alert('Failed to delete review: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setDeletingReview(null)
+    }
   }
 
   const formatDate = (dateStr) => {
@@ -267,33 +292,54 @@ export default function PRDetail() {
             ) : (
               <div className="space-y-2">
                 {reviews.map((review) => (
-                  <button
+                  <div
                     key={review.review_id}
-                    onClick={() => loadReviewContent(review.review_id)}
-                    className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                    className={`relative rounded-lg border transition-colors ${
                       selectedReview?.review_id === review.review_id
                         ? 'bg-blue-600/20 border-blue-500'
                         : 'bg-[#0F1419] border-gray-800 hover:border-gray-700'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      {review.status === 'completed' ? (
-                        <CheckCircle className="w-4 h-4 text-green-400" />
-                      ) : review.status === 'failed' ? (
-                        <AlertCircle className="w-4 h-4 text-red-400" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-yellow-400" />
-                      )}
-                      <span className="text-white text-sm font-medium">
-                        {review.status === 'completed' ? 'Completed' : review.status}
-                      </span>
-                    </div>
+                    <button
+                      onClick={() => loadReviewContent(review.review_id)}
+                      className="w-full text-left p-4 pr-12"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        {review.status === 'completed' ? (
+                          <CheckCircle className="w-4 h-4 text-green-400" />
+                        ) : review.status === 'failed' ? (
+                          <AlertCircle className="w-4 h-4 text-red-400" />
+                        ) : (
+                          <Clock className="w-4 h-4 text-yellow-400" />
+                        )}
+                        <span className="text-white text-sm font-medium">
+                          {review.status === 'completed' ? 'Completed' : review.status}
+                        </span>
+                      </div>
 
-                    <p className="text-gray-400 text-xs flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {formatDate(review.created_at)}
-                    </p>
-                  </button>
+                      <p className="text-gray-400 text-xs flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatDate(review.created_at)}
+                      </p>
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteReview(review.review_id)
+                      }}
+                      disabled={deletingReview === review.review_id}
+                      className="absolute top-2 right-2 p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Delete review"
+                    >
+                      {deletingReview === review.review_id ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

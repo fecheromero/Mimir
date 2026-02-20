@@ -139,6 +139,11 @@ export const prReviewsApi = {
     return response.data
   },
 
+  deleteReview: async (prId, reviewId) => {
+    const response = await api.delete(`/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}`)
+    return response.data
+  },
+
   unwatchPR: async (prId) => {
     const response = await api.delete(`/api/pr-reviews/${encodeURIComponent(prId)}`)
     return response.data
