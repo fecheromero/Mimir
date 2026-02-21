@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2 } from 'lucide-react'
 import { prReviewsApi } from '../services/api'
 import ReactMarkdown from 'react-markdown'
