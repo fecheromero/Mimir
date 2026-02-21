@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2 } from 'lucide-react'
 import { prReviewsApi } from '../services/api'
 import ReactMarkdown from 'react-markdown'
+import StructuredReview from '../components/StructuredReview'
 
 export default function PRDetail() {
   const { prId } = useParams()
@@ -363,8 +364,12 @@ export default function PRDetail() {
                   </span>
                 </div>
 
-                <div className="prose prose-invert max-w-none">
-                  <ReactMarkdown
+                {/* Render structured review if available, otherwise fall back to markdown */}
+                {selectedReview.review_data ? (
+                  <StructuredReview reviewData={selectedReview.review_data} />
+                ) : (
+                  <div className="prose prose-invert max-w-none">
+                    <ReactMarkdown
                     components={{
                       h1: ({ children }) => (
                         <h1 className="text-3xl font-bold text-white mt-8 mb-4">{children}</h1>
@@ -462,7 +467,8 @@ export default function PRDetail() {
                   >
                     {selectedReview.review_text}
                   </ReactMarkdown>
-                </div>
+                  </div>
+                )}
 
                 {/* Rule Suggestion Section */}
                 {selectedReview.rule_suggestion && (

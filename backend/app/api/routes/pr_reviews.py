@@ -96,8 +96,18 @@ async def execute_sync_review(pr_id: str) -> dict:
         # Update progress
         redis_client.hset(f"pr_review:{review_id}", "progress", 40)
 
-        # Generate review using LLM
+        # Generate structured review using LLM
         review_agent = PRReviewAgent()
+        structured_review = review_agent.generate_structured_review(
+            pr_info=pr_info,
+            diff=diff,
+            files=files
+        )
+
+        # Update progress
+        redis_client.hset(f"pr_review:{review_id}", "progress", 50)
+
+        # Also generate markdown review for backward compatibility
         review_text = review_agent.generate_review(
             pr_info=pr_info,
             diff=diff,
@@ -124,7 +134,8 @@ async def execute_sync_review(pr_id: str) -> dict:
             "pr_id": pr_id,
             "pr_url": pr_info["url"],
             "created_at": datetime.utcnow().isoformat(),
-            "review_text": review_text,
+            "review_text": review_text,  # Markdown (backward compat)
+            "review_data": structured_review,  # Structured JSON
             "status": "completed",
             "rule_suggestion": rule_suggestion
         }
@@ -155,6 +166,7 @@ async def execute_sync_review(pr_id: str) -> dict:
             "status": "completed",
             "created_at": review_data["created_at"],
             "review_text": review_text,
+            "review_data": structured_review,
             "rule_suggestion": rule_suggestion
         }
 

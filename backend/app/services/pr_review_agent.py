@@ -2,7 +2,9 @@
 PR Review Agent - Generates code reviews using LLM.
 """
 import os
-from typing import Optional, Dict
+import json
+import re
+from typing import Optional, Dict, List
 from ..core.llm_factory import get_llm_for_test_generation
 
 
@@ -285,3 +287,158 @@ Based on this experience, should we add anything to our reviewer guidelines?
             }
 
         return None
+
+    def generate_structured_review(
+        self,
+        pr_info: dict,
+        diff: str,
+        files: Optional[list] = None
+    ) -> Dict:
+        """
+        Generate structured PR review with categorized improvements.
+
+        Returns JSON with:
+        - summary: Overall assessment
+        - dummy_improvements: Safe, low-risk changes (typos, linter, unused code)
+        - medium_improvements: Moderate complexity (refactoring, patterns)
+        - experimental_improvements: High-risk/effort (architecture changes)
+        """
+        system_prompt = f"""You are an expert code reviewer analyzing pull requests.
+
+**Custom Review Guidelines:**
+
+{self.reviewer_rules}
+
+---
+
+**CRITICAL: Your response MUST be valid JSON only. No markdown, no explanations outside the JSON.**
+
+Analyze the PR and categorize improvements into 3 levels:
+
+1. **DUMMY IMPROVEMENTS** - Safe, trivial changes (auto-applicable):
+   - Remove unused imports/variables
+   - Fix typos in comments/strings
+   - Fix linter warnings
+   - Remove debug statements
+   - Format/indentation fixes
+
+   For each, provide:
+   - Exact file path and line numbers
+   - The EXACT current line content
+   - The EXACT replacement (as diff format)
+   - Confidence score (0.0-1.0, only >0.85 for dummy)
+
+2. **MEDIUM IMPROVEMENTS** - Moderate complexity:
+   - Extract duplicate code
+   - Apply design patterns
+   - Improve error handling
+   - Add validation
+
+3. **EXPERIMENTAL** - High risk/effort:
+   - Architecture changes
+   - Major refactoring
+   - Technology migrations
+   - Breaking changes
+
+Response format (MUST be valid JSON):
+```json
+{{
+  "summary": "Brief overall assessment",
+  "dummy_improvements": [
+    {{
+      "id": "d1",
+      "title": "Short title",
+      "description": "What and why",
+      "file_path": "src/app.js",
+      "line_start": 5,
+      "line_end": 5,
+      "current_content": "import unused from 'lodash'",
+      "replacement": "",
+      "diff": "- import unused from 'lodash'\\n",
+      "confidence": 0.95,
+      "type": "remove_unused_import"
+    }}
+  ],
+  "medium_improvements": [
+    {{
+      "id": "m1",
+      "title": "Short title",
+      "description": "Detailed explanation",
+      "files": ["file1.js", "file2.js"],
+      "confidence": 0.75,
+      "impact": "medium",
+      "rationale": "Why this matters"
+    }}
+  ],
+  "experimental_improvements": [
+    {{
+      "id": "e1",
+      "title": "Short title",
+      "description": "Detailed explanation",
+      "impact": "high",
+      "risk": "medium",
+      "effort": "high",
+      "files_affected_count": 15
+    }}
+  ]
+}}
+```
+
+**IMPORTANT:**
+- Only include dummy improvements if you can provide EXACT line content and replacement
+- Confidence >0.85 required for dummy category
+- Be conservative: when in doubt, categorize as medium, not dummy
+- Escape special characters in JSON strings
+- Ensure all JSON is properly formatted"""
+
+        # Build prompt
+        user_prompt = self._build_user_prompt(pr_info, diff, files, None)
+        user_prompt += "\n\nProvide your analysis as JSON following the format specified."
+
+        messages = [{"role": "user", "content": user_prompt}]
+
+        response = self.llm_client.messages.create(
+            model=self.llm_client.model,
+            max_tokens=8192,
+            system=system_prompt,
+            messages=messages
+        )
+
+        response_text = response.content[0].text.strip()
+
+        # Extract JSON from response (handle markdown code blocks)
+        json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            # Try to find JSON object directly
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                json_str = response_text
+
+        try:
+            structured_review = json.loads(json_str)
+
+            # Validate structure
+            if "dummy_improvements" not in structured_review:
+                structured_review["dummy_improvements"] = []
+            if "medium_improvements" not in structured_review:
+                structured_review["medium_improvements"] = []
+            if "experimental_improvements" not in structured_review:
+                structured_review["experimental_improvements"] = []
+            if "summary" not in structured_review:
+                structured_review["summary"] = "Review completed"
+
+            return structured_review
+
+        except json.JSONDecodeError as e:
+            # Fallback: return empty structure with error
+            return {
+                "summary": f"Error parsing review: {str(e)}",
+                "dummy_improvements": [],
+                "medium_improvements": [],
+                "experimental_improvements": [],
+                "parse_error": response_text[:500]
+            }

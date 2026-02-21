@@ -666,16 +666,27 @@ def review_pr_task(self, review_id: str, pr_id: str):
 
         redis_client.hset(f"pr_review:{review_id}", "progress", 40)
 
-        # Generate review using LLM
-        logger.info(f"[Review {review_id}] Generating review with LLM")
+        # Generate structured review using LLM
+        logger.info(f"[Review {review_id}] Generating structured review with LLM")
         from app.services.pr_review_agent import PRReviewAgent
         review_agent = PRReviewAgent()
+
+        structured_review = review_agent.generate_structured_review(
+            pr_info=pr_info,
+            diff=diff,
+            files=files
+        )
+        logger.info(f"[Review {review_id}] Structured review generated")
+
+        redis_client.hset(f"pr_review:{review_id}", "progress", 60)
+
+        # Also generate markdown review for backward compatibility
         review_text = review_agent.generate_review(
             pr_info=pr_info,
             diff=diff,
             files=files
         )
-        logger.info(f"[Review {review_id}] Review generated (length: {len(review_text)} chars)")
+        logger.info(f"[Review {review_id}] Markdown review generated (length: {len(review_text)} chars)")
 
         redis_client.hset(f"pr_review:{review_id}", "progress", 80)
 
@@ -687,7 +698,8 @@ def review_pr_task(self, review_id: str, pr_id: str):
             "pr_id": pr_id,
             "pr_url": pr_info["url"],
             "created_at": datetime.utcnow().isoformat(),
-            "review_text": review_text,
+            "review_text": review_text,  # Markdown (backward compat)
+            "review_data": structured_review,  # Structured JSON
             "status": "completed"
         }
         storage.save_pr_review(pr_id, review_id, review_data)

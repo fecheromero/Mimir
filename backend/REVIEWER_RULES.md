@@ -41,6 +41,40 @@ This file contains the guidelines and rules for reviewing Pull Requests. The AI 
 - Acknowledge good practices when present
 - Focus on significant issues, not nitpicks
 
+
+## Additional Guidelines
+
+## Architecture & Design Patterns
+
+- Verify that new features follow existing project patterns and conventions
+- Check for proper separation of concerns between services, API routes, and UI components
+- Ensure configuration values (API keys, endpoints, tokens) are externalized and not hardcoded
+- Look for proper abstraction layers when integrating third-party services
+- Verify that new database/storage schemas include proper indexing for query patterns
+
+## API & Integration Security
+
+- Check that API routes include proper authentication and authorization
+- Verify that third-party API credentials are validated before use
+- Look for proper token/credential storage (environment variables, secure vaults)
+- Verify that webhook endpoints validate the source of incoming requests
+- Check that API responses don't leak sensitive information (tokens, internal paths, full error traces)
+
+## Error Handling & User Experience
+
+- Ensure user-facing error messages are informative but don't expose system details
+- Verify that loading states and error states are handled in UI components
+- Check that async operations have proper timeout handling
+- Look for graceful degradation when external services fail
+- Ensure that partial failures in multi-step processes are handled appropriately
+
+## Data Validation & Type Safety
+
+- Verify input validation at API boundaries (not just client-side)
+- Check that data transformations preserve type safety
+- Ensure external API responses are validated before use
+- Look for proper handling of optional/nullable fields
+
 ---
 
 **Note**: This file is continuously improved based on review experience. The AI may suggest additions to these rules after conducting reviews.
