@@ -1,13 +1,17 @@
-import { CheckCircle } from 'lucide-react'
+import { useState } from 'react'
+import { MessageSquare } from 'lucide-react'
 import DiffPreview from './DiffPreview'
+import PromptBuilder from './PromptBuilder'
 
 export default function ImprovementCard({
   improvement,
   category,
   selected = false,
   onToggle = null,
-  showCheckbox = false
+  showCheckbox = false,
+  pr = null
 }) {
+  const [showPromptBuilder, setShowPromptBuilder] = useState(false)
   const getBadgeColor = (confidence) => {
     if (confidence >= 0.9) return 'bg-green-500/20 text-green-400 border-green-500/30'
     if (confidence >= 0.75) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
@@ -84,8 +88,31 @@ export default function ImprovementCard({
               {improvement.rationale}
             </div>
           )}
+
+          {/* Generate Prompt button for medium/experimental */}
+          {(category === 'medium' || category === 'experimental') && pr && (
+            <div className="mt-3">
+              <button
+                onClick={() => setShowPromptBuilder(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Generate Prompt
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Prompt Builder Modal */}
+      {showPromptBuilder && (
+        <PromptBuilder
+          improvement={improvement}
+          pr={pr}
+          category={category}
+          onClose={() => setShowPromptBuilder(false)}
+        />
+      )}
     </div>
   )
 }

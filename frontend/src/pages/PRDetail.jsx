@@ -366,7 +366,7 @@ export default function PRDetail() {
 
                 {/* Render structured review if available, otherwise fall back to markdown */}
                 {selectedReview.review_data ? (
-                  <StructuredReview reviewData={selectedReview.review_data} />
+                  <StructuredReview reviewData={selectedReview.review_data} pr={prInfo} />
                 ) : (
                   <div className="prose prose-invert max-w-none">
                     <ReactMarkdown

@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare } from 'lucide-react'
+import { ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers } from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
+import PromptBuilder from './PromptBuilder'
+import { useCombinedPromptGenerator } from '../hooks/useCombinedPromptGenerator'
+import PromptPreview from './PromptPreview'
 
-export default function StructuredReview({ reviewData }) {
+export default function StructuredReview({ reviewData, pr }) {
   const [expandedSections, setExpandedSections] = useState({
     dummy: true,
     medium: false,
@@ -10,6 +13,9 @@ export default function StructuredReview({ reviewData }) {
   })
 
   const [selectedImprovements, setSelectedImprovements] = useState([])
+  const [selectedMedium, setSelectedMedium] = useState([])
+  const [selectedExperimental, setSelectedExperimental] = useState([])
+  const [showCombinedPrompt, setShowCombinedPrompt] = useState(null) // 'medium' | 'experimental' | null
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -27,6 +33,48 @@ export default function StructuredReview({ reviewData }) {
       }
     })
   }
+
+  const handleToggleMedium = (improvementId, checked) => {
+    setSelectedMedium(prev => {
+      if (checked) {
+        return [...prev, improvementId]
+      } else {
+        return prev.filter(id => id !== improvementId)
+      }
+    })
+  }
+
+  const handleToggleExperimental = (improvementId, checked) => {
+    setSelectedExperimental(prev => {
+      if (checked) {
+        return [...prev, improvementId]
+      } else {
+        return prev.filter(id => id !== improvementId)
+      }
+    })
+  }
+
+  // Get selected improvements objects for combined prompt
+  const selectedMediumImprovements = reviewData.medium_improvements?.filter(
+    imp => selectedMedium.includes(imp.id)
+  ) || []
+
+  const selectedExperimentalImprovements = reviewData.experimental_improvements?.filter(
+    imp => selectedExperimental.includes(imp.id)
+  ) || []
+
+  // Combined prompt generators
+  const mediumCombinedPrompt = useCombinedPromptGenerator(
+    selectedMediumImprovements,
+    pr,
+    'medium'
+  )
+
+  const experimentalCombinedPrompt = useCombinedPromptGenerator(
+    selectedExperimentalImprovements,
+    pr,
+    'experimental'
+  )
 
   const dummyCount = reviewData.dummy_improvements?.length || 0
   const mediumCount = reviewData.medium_improvements?.length || 0
@@ -142,13 +190,34 @@ export default function StructuredReview({ reviewData }) {
                 No medium improvements found
               </p>
             ) : (
-              reviewData.medium_improvements.map((improvement) => (
-                <ImprovementCard
-                  key={improvement.id}
-                  improvement={improvement}
-                  category="medium"
-                />
-              ))
+              <>
+                {reviewData.medium_improvements.map((improvement) => (
+                  <ImprovementCard
+                    key={improvement.id}
+                    improvement={improvement}
+                    category="medium"
+                    pr={pr}
+                    selected={selectedMedium.includes(improvement.id)}
+                    onToggle={handleToggleMedium}
+                    showCheckbox={mediumCount > 1}
+                  />
+                ))}
+
+                {selectedMedium.length > 1 && (
+                  <div className="mt-4 flex items-center justify-between p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <span className="text-yellow-400 text-sm">
+                      {selectedMedium.length} improvement(s) selected
+                    </span>
+                    <button
+                      onClick={() => setShowCombinedPrompt('medium')}
+                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <Layers className="w-4 h-4" />
+                      Generate Combined Prompt
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -184,17 +253,61 @@ export default function StructuredReview({ reviewData }) {
                 No experimental improvements found
               </p>
             ) : (
-              reviewData.experimental_improvements.map((improvement) => (
-                <ImprovementCard
-                  key={improvement.id}
-                  improvement={improvement}
-                  category="experimental"
-                />
-              ))
+              <>
+                {reviewData.experimental_improvements.map((improvement) => (
+                  <ImprovementCard
+                    key={improvement.id}
+                    improvement={improvement}
+                    category="experimental"
+                    pr={pr}
+                    selected={selectedExperimental.includes(improvement.id)}
+                    onToggle={handleToggleExperimental}
+                    showCheckbox={experimentalCount > 1}
+                  />
+                ))}
+
+                {selectedExperimental.length > 1 && (
+                  <div className="mt-4 flex items-center justify-between p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <span className="text-purple-400 text-sm">
+                      {selectedExperimental.length} improvement(s) selected
+                    </span>
+                    <button
+                      onClick={() => setShowCombinedPrompt('experimental')}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <Layers className="w-4 h-4" />
+                      Generate Combined Prompt
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
       </div>
+
+      {/* Combined Prompt Modal */}
+      {showCombinedPrompt === 'medium' && selectedMedium.length > 1 && (
+        <PromptBuilder
+          improvement={null}
+          pr={pr}
+          category="medium"
+          onClose={() => setShowCombinedPrompt(null)}
+          isCombined={true}
+          combinedPromptData={mediumCombinedPrompt}
+        />
+      )}
+
+      {showCombinedPrompt === 'experimental' && selectedExperimental.length > 1 && (
+        <PromptBuilder
+          improvement={null}
+          pr={pr}
+          category="experimental"
+          onClose={() => setShowCombinedPrompt(null)}
+          isCombined={true}
+          combinedPromptData={experimentalCombinedPrompt}
+        />
+      )}
     </div>
   )
 }
