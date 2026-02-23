@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
-from app.api.routes import test_cases, jobs
+from app.api.routes import test_cases, jobs, pr_reviews
 
 settings = get_settings()
 
@@ -14,6 +14,7 @@ app = FastAPI(
 # CORS middleware
 origins = [
     "http://localhost:3000",
+    "http://localhost:3023",
     "http://localhost:5173",  # Vite dev server
 ]
 
@@ -81,3 +82,4 @@ async def debug_env():
 # Include routers
 app.include_router(test_cases.router, prefix="/api/test-cases", tags=["test-cases"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
+app.include_router(pr_reviews.router, prefix="/api/pr-reviews", tags=["pr-reviews"])

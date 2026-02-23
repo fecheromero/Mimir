@@ -620,6 +620,128 @@ Total actions: {len(actions)}
         raise
 
 
+@celery_app.task(bind=True)
+def review_pr_task(self, review_id: str, pr_id: str):
+    """
+    Celery task to generate PR review using LLM.
+
+    Args:
+        review_id: Unique review identifier
+        pr_id: PR identifier (owner/repo/number)
+    """
+    logger = logging.getLogger(__name__)
+    logger.info(f"[Review {review_id}] Starting PR review task for PR {pr_id}")
+
+    try:
+        # Update review status
+        redis_client.hset(
+            f"pr_review:{review_id}",
+            mapping={
+                "status": "processing",
+                "progress": 10
+            }
+        )
+        redis_client.expire(f"pr_review:{review_id}", settings.job_retention_hours * 3600)
+
+        # Get PR info from Redis
+        pr_data = redis_client.hgetall(f"pr:{pr_id}")
+        if not pr_data:
+            raise Exception(f"PR {pr_id} not found in Redis")
+
+        pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
+        logger.info(f"[Review {review_id}] Found PR: {pr_info.get('title', 'N/A')}")
+
+        # Parse PR URL
+        from app.services.github_service import GitHubService
+        github_service = GitHubService()
+        owner, repo, pr_number = github_service.parse_pr_url(pr_info["url"])
+
+        redis_client.hset(f"pr_review:{review_id}", "progress", 20)
+
+        # Fetch PR diff and files
+        logger.info(f"[Review {review_id}] Fetching PR diff and files")
+        diff = github_service.get_pr_diff(owner, repo, pr_number)
+        files = github_service.get_pr_files(owner, repo, pr_number)
+        logger.info(f"[Review {review_id}] Fetched {len(files)} files")
+
+        redis_client.hset(f"pr_review:{review_id}", "progress", 40)
+
+        # Generate structured review using LLM
+        logger.info(f"[Review {review_id}] Generating structured review with LLM")
+        from app.services.pr_review_agent import PRReviewAgent
+        review_agent = PRReviewAgent()
+
+        structured_review = review_agent.generate_structured_review(
+            pr_info=pr_info,
+            diff=diff,
+            files=files
+        )
+        logger.info(f"[Review {review_id}] Structured review generated")
+
+        redis_client.hset(f"pr_review:{review_id}", "progress", 60)
+
+        # Also generate markdown review for backward compatibility
+        review_text = review_agent.generate_review(
+            pr_info=pr_info,
+            diff=diff,
+            files=files
+        )
+        logger.info(f"[Review {review_id}] Markdown review generated (length: {len(review_text)} chars)")
+
+        redis_client.hset(f"pr_review:{review_id}", "progress", 80)
+
+        # Save review to storage
+        logger.info(f"[Review {review_id}] Saving review to storage")
+        storage = StorageService()
+        review_data = {
+            "review_id": review_id,
+            "pr_id": pr_id,
+            "pr_url": pr_info["url"],
+            "pr_head_sha": pr_info.get("head_sha", ""),  # Track PR HEAD at review time
+            "created_at": datetime.utcnow().isoformat(),
+            "review_text": review_text,  # Markdown (backward compat)
+            "review_data": structured_review,  # Structured JSON
+            "status": "completed"
+        }
+        storage.save_pr_review(pr_id, review_id, review_data)
+
+        # Add review to PR's review list in Redis
+        redis_client.rpush(f"pr:{pr_id}:reviews", review_id)
+
+        # Update review status
+        redis_client.hset(
+            f"pr_review:{review_id}",
+            mapping={
+                "status": "completed",
+                "progress": 100,
+                "review_text_preview": review_text[:500]
+            }
+        )
+        redis_client.expire(f"pr_review:{review_id}", settings.job_retention_hours * 3600)
+
+        logger.info(f"[Review {review_id}] Task completed successfully")
+
+        return {
+            "review_id": review_id,
+            "pr_id": pr_id,
+            "status": "completed"
+        }
+
+    except Exception as e:
+        error_msg = f"Error: {str(e)}"
+        logger.error(f"[Review {review_id}] Task failed: {error_msg}", exc_info=True)
+
+        redis_client.hset(
+            f"pr_review:{review_id}",
+            mapping={
+                "status": "failed",
+                "error": error_msg,
+                "progress": 0
+            }
+        )
+        raise
+
+
 @celery_app.task
 def cleanup_old_jobs():
     """Periodic task to cleanup old job files."""

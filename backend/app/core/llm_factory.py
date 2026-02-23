@@ -42,6 +42,8 @@ def get_llm_for_test_generation():
             logger.info(f"Anthropic API key present: {settings.anthropic_api_key[:10]}...")
 
             client = Anthropic(api_key=settings.anthropic_api_key)
+            # Add model attribute for compatibility
+            client.model = settings.test_case_agent_model
             logger.info("Anthropic client created successfully")
             return client
 

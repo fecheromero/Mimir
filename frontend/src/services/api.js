@@ -108,4 +108,101 @@ export const jobsApi = {
   },
 }
 
+export const prReviewsApi = {
+  watchPR: async (prUrl) => {
+    const response = await api.post('/api/pr-reviews/watch', {
+      pr_url: prUrl,
+    })
+    return response.data
+  },
+
+  getWatchedPRs: async () => {
+    const response = await api.get('/api/pr-reviews/watched')
+    return response.data
+  },
+
+  getPRDetails: async (prId) => {
+    const response = await api.get(`/api/pr-reviews/${encodeURIComponent(prId)}`)
+    return response.data
+  },
+
+  triggerReview: async (prId) => {
+    const response = await api.post(`/api/pr-reviews/${encodeURIComponent(prId)}/review`, {
+      pr_id: prId,
+      sync: true,
+    })
+    return response.data
+  },
+
+  getReview: async (prId, reviewId) => {
+    const response = await api.get(`/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}`)
+    return response.data
+  },
+
+  deleteReview: async (prId, reviewId) => {
+    const response = await api.delete(`/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}`)
+    return response.data
+  },
+
+  unwatchPR: async (prId) => {
+    const response = await api.delete(`/api/pr-reviews/${encodeURIComponent(prId)}`)
+    return response.data
+  },
+
+  getReviewerRules: async () => {
+    const response = await api.get('/api/pr-reviews/reviewer-rules')
+    return response.data
+  },
+
+  approveSuggestion: async (prId, reviewId, editedSuggestion = null) => {
+    const response = await api.post('/api/pr-reviews/reviewer-rules/approve-suggestion', {
+      pr_id: prId,
+      review_id: reviewId,
+      edited_suggestion: editedSuggestion,
+    })
+    return response.data
+  },
+
+  rejectSuggestion: async (prId, reviewId, reason = null) => {
+    const response = await api.post('/api/pr-reviews/reviewer-rules/reject-suggestion', {
+      pr_id: prId,
+      review_id: reviewId,
+      reason,
+    })
+    return response.data
+  },
+
+  updateReviewerRules: async (rulesContent) => {
+    const response = await api.put('/api/pr-reviews/reviewer-rules', {
+      rules_content: rulesContent,
+    })
+    return response.data
+  },
+
+  applyImprovements: async (prId, improvements, commitMessage = null) => {
+    const response = await api.post(
+      `/api/pr-reviews/${encodeURIComponent(prId)}/improvements/apply`,
+      {
+        improvement_ids: improvements.map(imp => imp.id),
+        improvements: improvements.map(imp => ({
+          id: imp.id,
+          file_path: imp.file_path,
+          diff: imp.diff,
+          title: imp.title,
+          confidence: imp.confidence
+        })),
+        commit_message: commitMessage
+      }
+    )
+    return response.data
+  },
+
+  getReviewStatus: async (prId, reviewId) => {
+    const response = await api.get(
+      `/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}/status`
+    )
+    return response.data
+  },
+}
+
 export default api
