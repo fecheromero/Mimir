@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { TestTube2, GitPullRequest } from 'lucide-react'
 
-export default function Sidebar() {
+export default function Sidebar(): JSX.Element {
   const location = useLocation()
   const isQAActive = location.pathname === '/'
   const isPRActive = location.pathname.startsWith('/pr-reviewer')

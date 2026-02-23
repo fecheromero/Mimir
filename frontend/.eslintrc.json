@@ -1,0 +1,58 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": [
+    "react",
+    "@typescript-eslint"
+  ],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "Program",
+        "message": "JavaScript files are not allowed. Use TypeScript (.ts, .tsx) instead."
+      }
+    ]
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "overrides": [
+    {
+      "files": ["*.js", "*.jsx"],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Program",
+            "message": "❌ JavaScript files (.js, .jsx) are not allowed. Please use TypeScript (.ts, .tsx) instead."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.config.js", "vite.config.js", "tailwind.config.js", "postcss.config.js"],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
+}

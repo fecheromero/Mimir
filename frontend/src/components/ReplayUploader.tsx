@@ -1,25 +1,35 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
 import { Play, Upload } from 'lucide-react'
 import BrowserSettings from './BrowserSettings'
 
-export default function ReplayUploader({ onReplay, loading }) {
-  const [file, setFile] = useState(null)
-  const [userEmail, setUserEmail] = useState('')
-  const [userPassword, setUserPassword] = useState('')
-  const [showCredentials, setShowCredentials] = useState(false)
-  const [headless, setHeadless] = useState(false)
+interface ReplayUploaderProps {
+  onReplay: (data: {
+    file: File
+    userEmail: string | null
+    userPassword: string | null
+    headless: boolean
+  }) => Promise<void>
+  loading: boolean
+}
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0]
+export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProps): JSX.Element {
+  const [file, setFile] = useState<File | null>(null)
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [userPassword, setUserPassword] = useState<string>('')
+  const [showCredentials, setShowCredentials] = useState<boolean>(false)
+  const [headless, setHeadless] = useState<boolean>(false)
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const selectedFile = e.target.files?.[0]
     if (selectedFile && selectedFile.type === 'application/json') {
       setFile(selectedFile)
     } else {
       alert('Please select a valid JSON file')
-      e.target.value = null
+      e.target.value = ''
     }
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault()
 
     if (!file) {
@@ -81,7 +91,7 @@ export default function ReplayUploader({ onReplay, loading }) {
             <input
               type="checkbox"
               checked={showCredentials}
-              onChange={(e) => setShowCredentials(e.target.checked)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setShowCredentials(e.target.checked)}
               className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
               disabled={loading}
             />
@@ -101,7 +111,7 @@ export default function ReplayUploader({ onReplay, loading }) {
               <input
                 type="email"
                 value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value)}
                 placeholder="user@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 disabled={loading}
@@ -115,7 +125,7 @@ export default function ReplayUploader({ onReplay, loading }) {
               <input
                 type="password"
                 value={userPassword}
-                onChange={(e) => setUserPassword(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 disabled={loading}

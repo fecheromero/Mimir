@@ -1,4 +1,8 @@
-export default function DiffPreview({ diff }) {
+interface DiffPreviewProps {
+  diff: string | null
+}
+
+export default function DiffPreview({ diff }: DiffPreviewProps): JSX.Element | null {
   if (!diff) return null
 
   const lines = diff.split('\n')

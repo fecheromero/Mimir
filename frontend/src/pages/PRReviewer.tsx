@@ -1,70 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GitPullRequest, Plus, Trash2, ExternalLink, Clock } from 'lucide-react'
-import { prReviewsApi } from '../services/api'
+import { usePRList } from '@hooks/usePRList'
 
 export default function PRReviewer() {
   const navigate = useNavigate()
-  const [watchedPRs, setWatchedPRs] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [addingPR, setAddingPR] = useState(false)
-  const [prUrl, setPrUrl] = useState('')
-  const [error, setError] = useState(null)
+  const [prUrl, setPrUrl] = useState<string>('')
+  const [addingPR, setAddingPR] = useState<boolean>(false)
 
-  useEffect(() => {
-    loadWatchedPRs()
-  }, [])
+  const { prs, loading, error, watchPR, unwatchPR } = usePRList()
 
-  const loadWatchedPRs = async () => {
-    try {
-      setLoading(true)
-      const data = await prReviewsApi.getWatchedPRs()
-      setWatchedPRs(data.prs || [])
-    } catch (err) {
-      console.error('Error loading PRs:', err)
-      setError('Failed to load watched PRs')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleAddPR = async (e) => {
+  const handleAddPR = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!prUrl.trim()) return
 
     try {
       setAddingPR(true)
-      setError(null)
-
-      await prReviewsApi.watchPR(prUrl)
-
-      // Reset form
+      await watchPR(prUrl)
       setPrUrl('')
-
-      // Reload list
-      await loadWatchedPRs()
     } catch (err) {
       console.error('Error adding PR:', err)
-      setError(err.response?.data?.detail || 'Failed to add PR')
     } finally {
       setAddingPR(false)
     }
   }
 
-  const handleUnwatch = async (prId) => {
+  const handleUnwatch = async (prId: string) => {
     if (!confirm('Are you sure you want to stop watching this PR?')) return
 
     try {
-      await prReviewsApi.unwatchPR(prId)
-      await loadWatchedPRs()
+      await unwatchPR(prId)
     } catch (err) {
       console.error('Error unwatching PR:', err)
-      setError('Failed to unwatch PR')
     }
   }
 
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr)
+  const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -134,14 +105,14 @@ export default function PRReviewer() {
         {/* Watched PRs List */}
         <div>
           <h2 className="text-xl font-semibold text-white mb-4">
-            Watched Pull Requests ({watchedPRs.length})
+            Watched Pull Requests ({prs.length})
           </h2>
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : watchedPRs.length === 0 ? (
+          ) : prs.length === 0 ? (
             <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-12 text-center">
               <GitPullRequest className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 mb-2">No pull requests being watched</p>
@@ -151,7 +122,7 @@ export default function PRReviewer() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {watchedPRs.map((pr) => (
+              {prs.map((pr) => (
                 <div
                   key={pr.id}
                   className="bg-[#0F1419] border border-gray-800 rounded-lg p-6 hover:border-gray-700 transition-colors"
@@ -168,7 +139,7 @@ export default function PRReviewer() {
                         </h3>
                         <span
                           className={`px-2 py-1 text-xs rounded-full ${
-                            pr.state === 'open'
+                            pr.isOpen
                               ? 'bg-green-500/20 text-green-400'
                               : 'bg-purple-500/20 text-purple-400'
                           }`}
@@ -184,7 +155,7 @@ export default function PRReviewer() {
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          Updated {formatDate(pr.updated_at)}
+                          Updated {formatDate(pr.updatedAt)}
                         </span>
                       </div>
 
@@ -194,9 +165,6 @@ export default function PRReviewer() {
                           className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
                         >
                           View Details
-                          <span className="text-xs bg-blue-500/20 px-2 py-0.5 rounded-full">
-                            {pr.review_count} {pr.review_count === 1 ? 'review' : 'reviews'}
-                          </span>
                         </button>
 
                         <a

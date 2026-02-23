@@ -1,10 +1,16 @@
 import { Monitor, MonitorOff } from 'lucide-react'
 
+interface BrowserSettingsProps {
+  headless: boolean
+  setHeadless: (headless: boolean) => void
+  disabled?: boolean
+}
+
 export default function BrowserSettings({
   headless,
   setHeadless,
   disabled = false
-}) {
+}: BrowserSettingsProps): JSX.Element {
   return (
     <div className="space-y-4 p-5 bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-lg border border-gray-200">
       <h3 className="text-sm font-semibold text-[#111827] flex items-center gap-2">

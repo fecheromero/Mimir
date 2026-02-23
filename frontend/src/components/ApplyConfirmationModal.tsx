@@ -1,5 +1,25 @@
-import { useState } from 'react'
+import { useState, KeyboardEvent, ChangeEvent } from 'react'
 import { X, AlertTriangle, GitCommit, FileCode } from 'lucide-react'
+
+interface Improvement {
+  id: string
+  title: string
+  file_path: string
+  confidence?: number
+}
+
+interface PR {
+  url: string
+  head_branch: string
+}
+
+interface ApplyConfirmationModalProps {
+  improvements: Improvement[]
+  pr: PR
+  onConfirm: (commitMessage: string | null) => void
+  onCancel: () => void
+  applying: boolean
+}
 
 export default function ApplyConfirmationModal({
   improvements,
@@ -7,19 +27,19 @@ export default function ApplyConfirmationModal({
   onConfirm,
   onCancel,
   applying
-}) {
-  const [commitMessage, setCommitMessage] = useState('')
+}: ApplyConfirmationModalProps): JSX.Element {
+  const [commitMessage, setCommitMessage] = useState<string>('')
 
   // Generate default commit message
   const defaultCommitMessage = improvements.length === 1
     ? `Apply improvement: ${improvements[0].title}\n\n🤖 Generated with Mimir PR Reviewer`
     : `Apply ${improvements.length} dummy improvements\n\n${improvements.map((imp, i) => `${i + 1}. ${imp.title}`).join('\n')}\n\n🤖 Generated with Mimir PR Reviewer\nPR: ${pr.url}`
 
-  const handleConfirm = () => {
+  const handleConfirm = (): void => {
     onConfirm(commitMessage || null)
   }
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
     // Auto-complete with TAB
     if (e.key === 'Tab' && !commitMessage.trim()) {
       e.preventDefault()
@@ -115,7 +135,7 @@ export default function ApplyConfirmationModal({
             <textarea
               id="commit-message"
               value={commitMessage}
-              onChange={(e) => setCommitMessage(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCommitMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={defaultCommitMessage}
               className="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 text-sm focus:outline-none focus:border-green-500 resize-none placeholder-gray-600 font-mono"

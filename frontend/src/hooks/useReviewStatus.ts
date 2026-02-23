@@ -1,19 +1,6 @@
 import { useState, useEffect } from 'react'
-import { prReviewsApi } from '../services/api'
-
-interface ImprovementStatus {
-  id: string
-  merged: boolean
-}
-
-interface ReviewStatus {
-  review_id: string
-  pr_id: string
-  is_outdated: boolean
-  review_head_sha: string
-  current_head_sha: string
-  improvements_status: ImprovementStatus[]
-}
+import { prReviewService } from '../services'
+import { ReviewStatus } from '../models'
 
 interface UseReviewStatusResult {
   status: ReviewStatus | null
@@ -23,8 +10,8 @@ interface UseReviewStatusResult {
 }
 
 export function useReviewStatus(
-  prId: string | null,
-  reviewId: string | null
+  prId: string | null | undefined,
+  reviewId: string | null | undefined
 ): UseReviewStatusResult {
   const [status, setStatus] = useState<ReviewStatus | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,8 +27,8 @@ export function useReviewStatus(
       setLoading(true)
       setError(null)
 
-      const data = await prReviewsApi.getReviewStatus(prId, reviewId)
-      setStatus(data)
+      const reviewStatus = await prReviewService.getReviewStatus(prId, reviewId)
+      setStatus(reviewStatus)
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.detail || err.message || 'Failed to fetch review status'

@@ -1,7 +1,13 @@
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 
-export default function JobStatus({ status, progress, currentStep }) {
-  const getStatusIcon = () => {
+interface JobStatusProps {
+  status: string
+  progress: number
+  currentStep: string
+}
+
+export default function JobStatus({ status, progress, currentStep }: JobStatusProps): JSX.Element {
+  const getStatusIcon = (): JSX.Element => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="w-6 h-6 text-green-600" />
@@ -12,7 +18,7 @@ export default function JobStatus({ status, progress, currentStep }) {
     }
   }
 
-  const getStatusColor = () => {
+  const getStatusColor = (): string => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800'

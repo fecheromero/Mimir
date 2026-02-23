@@ -3,12 +3,25 @@ import ReactMarkdown from 'react-markdown'
 import { Download, Play } from 'lucide-react'
 import BrowserSettings from './BrowserSettings'
 
-export default function TestCaseViewer({ testCases, onExecute, onDownload, executing }) {
-  const [headless, setHeadless] = useState(false)
+interface TestCase {
+  test_case_text: string
+  created_at: string
+  ticket_id: string
+}
+
+interface TestCaseViewerProps {
+  testCases: TestCase | null
+  onExecute: (data: { headless: boolean }) => void
+  onDownload: () => void
+  executing: boolean
+}
+
+export default function TestCaseViewer({ testCases, onExecute, onDownload, executing }: TestCaseViewerProps): JSX.Element | null {
+  const [headless, setHeadless] = useState<boolean>(false)
 
   if (!testCases) return null
 
-  const handleExecute = () => {
+  const handleExecute = (): void => {
     onExecute({
       headless
     })

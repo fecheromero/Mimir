@@ -1,25 +1,44 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink } from 'lucide-react'
+import {ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink, X} from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
 import PromptBuilder from './PromptBuilder'
 import ApplyConfirmationModal from './ApplyConfirmationModal'
 import { useCombinedPromptGenerator } from '../hooks/useCombinedPromptGenerator'
 import { useApplyImprovements } from '../hooks/useApplyImprovements'
 import { useReviewStatus } from '../hooks/useReviewStatus'
-import PromptPreview from './PromptPreview'
+import { PullRequest } from '@models'
 
-export default function StructuredReview({ reviewData, pr, reviewId }) {
-  const [expandedSections, setExpandedSections] = useState({
+interface StructuredReviewProps {
+  reviewData: {
+    summary?: string | null
+    dummy_improvements?: any[]
+    medium_improvements?: any[]
+    experimental_improvements?: any[]
+  }
+  pr: PullRequest | any
+  reviewId: string
+}
+
+type PromptType = 'medium' | 'experimental' | null
+
+interface ExpandedSections {
+  dummy: boolean
+  medium: boolean
+  experimental: boolean
+}
+
+export default function StructuredReview({ reviewData, pr, reviewId }: StructuredReviewProps) {
+  const [expandedSections, setExpandedSections] = useState<ExpandedSections>({
     dummy: true,
     medium: false,
     experimental: false
   })
 
-  const [selectedImprovements, setSelectedImprovements] = useState([])
-  const [selectedMedium, setSelectedMedium] = useState([])
-  const [selectedExperimental, setSelectedExperimental] = useState([])
-  const [showCombinedPrompt, setShowCombinedPrompt] = useState(null) // 'medium' | 'experimental' | null
-  const [showApplyModal, setShowApplyModal] = useState(false)
+  const [selectedImprovements, setSelectedImprovements] = useState<string[]>([])
+  const [selectedMedium, setSelectedMedium] = useState<string[]>([])
+  const [selectedExperimental, setSelectedExperimental] = useState<string[]>([])
+  const [showCombinedPrompt, setShowCombinedPrompt] = useState<PromptType>(null)
+  const [showApplyModal, setShowApplyModal] = useState<boolean>(false)
 
   // Hook for applying improvements
   const { applying, error, result, applyImprovements, reset } = useApplyImprovements()
@@ -27,21 +46,18 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
   // Hook for review status (merged improvements, outdated check)
   const { status: reviewStatus } = useReviewStatus(pr?.id, reviewId)
 
-  // Helper to check if improvement is merged
-  const isImprovementMerged = (improvementId) => {
-    if (!reviewStatus?.improvements_status) return false
-    const status = reviewStatus.improvements_status.find(s => s.id === improvementId)
-    return status?.merged || false
+  const isImprovementMerged = (improvementId: string): boolean => {
+    return reviewStatus?.isImprovementMerged(improvementId) || false
   }
 
-  const toggleSection = (section) => {
+  const toggleSection = (section: keyof ExpandedSections): void => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }))
   }
 
-  const handleToggleImprovement = (improvementId, checked) => {
+  const handleToggleImprovement = (improvementId: string, checked: boolean): void => {
     setSelectedImprovements(prev => {
       if (checked) {
         return [...prev, improvementId]
@@ -51,7 +67,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
     })
   }
 
-  const handleToggleMedium = (improvementId, checked) => {
+  const handleToggleMedium = (improvementId: string, checked: boolean): void => {
     setSelectedMedium(prev => {
       if (checked) {
         return [...prev, improvementId]
@@ -61,7 +77,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
     })
   }
 
-  const handleToggleExperimental = (improvementId, checked) => {
+  const handleToggleExperimental = (improvementId: string, checked: boolean): void => {
     setSelectedExperimental(prev => {
       if (checked) {
         return [...prev, improvementId]
@@ -103,8 +119,8 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
     setShowApplyModal(true)
   }
 
-  const handleApplyConfirm = async (commitMessage) => {
-    await applyImprovements(pr.id, selectedDummyImprovements, commitMessage)
+  const handleApplyConfirm = async (commitMessage: string | null) => {
+    await applyImprovements(pr.id, selectedDummyImprovements, commitMessage || undefined, reviewId)
     // Modal will close on success or error
   }
 
@@ -171,7 +187,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
               </p>
             ) : (
               <>
-                {reviewData.dummy_improvements.map((improvement) => {
+                {reviewData.dummy_improvements?.map((improvement) => {
                   const isMerged = isImprovementMerged(improvement.id)
                   return (
                     <ImprovementCard
@@ -187,19 +203,35 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
                 })}
 
                 {selectedImprovements.length > 0 && (
-                  <div className="mt-4 flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <span className="text-green-400 text-sm">
-                      {selectedImprovements.length} improvement(s) selected
-                    </span>
-                    <button
-                      onClick={handleApplyClick}
-                      disabled={applying}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <CheckSquare className="w-4 h-4" />
-                      {applying ? 'Applying...' : 'Apply Selected'}
-                    </button>
-                  </div>
+                  <>
+                    {reviewStatus?.isOutdated && (
+                      <div className="mt-4 flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                        <svg className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-yellow-400 text-sm font-medium">Cannot Apply - Review Outdated</p>
+                          <p className="text-yellow-300/80 text-xs mt-1">
+                            This review is based on an older commit. Generate a new review to apply improvements.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-4 flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                      <span className="text-green-400 text-sm">
+                        {selectedImprovements.length} improvement(s) selected
+                      </span>
+                      <button
+                        onClick={handleApplyClick}
+                        disabled={applying || reviewStatus?.isOutdated}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={reviewStatus?.isOutdated ? 'Cannot apply improvements - review is outdated' : ''}
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                        {applying ? 'Applying...' : reviewStatus?.isOutdated ? 'Review Outdated' : 'Apply Selected'}
+                      </button>
+                    </div>
+                  </>
                 )}
               </>
             )}
@@ -238,7 +270,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
               </p>
             ) : (
               <>
-                {reviewData.medium_improvements.map((improvement) => (
+                {reviewData.medium_improvements?.map((improvement) => (
                   <ImprovementCard
                     key={improvement.id}
                     improvement={improvement}
@@ -301,7 +333,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
               </p>
             ) : (
               <>
-                {reviewData.experimental_improvements.map((improvement) => (
+                {reviewData.experimental_improvements?.map((improvement) => (
                   <ImprovementCard
                     key={improvement.id}
                     improvement={improvement}
@@ -336,7 +368,6 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
       {/* Combined Prompt Modal */}
       {showCombinedPrompt === 'medium' && selectedMedium.length > 1 && (
         <PromptBuilder
-          improvement={null}
           pr={pr}
           category="medium"
           onClose={() => setShowCombinedPrompt(null)}
@@ -347,7 +378,6 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
 
       {showCombinedPrompt === 'experimental' && selectedExperimental.length > 1 && (
         <PromptBuilder
-          improvement={null}
           pr={pr}
           category="experimental"
           onClose={() => setShowCombinedPrompt(null)}

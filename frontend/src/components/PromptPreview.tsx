@@ -1,6 +1,12 @@
 import { Copy, Check } from 'lucide-react'
 
-export default function PromptPreview({ prompt, onCopy, copied }) {
+interface PromptPreviewProps {
+  prompt: string
+  onCopy: () => void
+  copied: boolean
+}
+
+export default function PromptPreview({ prompt, onCopy, copied }: PromptPreviewProps): JSX.Element {
   return (
     <div className="mt-4 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">

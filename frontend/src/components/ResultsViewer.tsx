@@ -1,18 +1,38 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import { Download, FileText, FileJson, Play } from 'lucide-react'
+import { FileText, FileJson, Play } from 'lucide-react'
 import { testCasesApi } from '../services/api'
 
-export default function ResultsViewer({ results, jobId }) {
-  const [executing, setExecuting] = useState(false)
+interface Action {
+  [key: string]: unknown
+}
+
+interface TestResults {
+  replay_actions?: Action[]
+  url: string
+  test_case_text?: string
+  test_expectations?: string
+  expected_outcome?: string
+  final_result: string
+  actions?: Action[]
+  executed_at: string
+}
+
+interface ResultsViewerProps {
+  results: TestResults | null
+  jobId: string
+}
+
+export default function ResultsViewer({ results, jobId }: ResultsViewerProps): JSX.Element | null {
+  const [executing, setExecuting] = useState<boolean>(false)
   const navigate = useNavigate()
 
   if (!results) return null
 
-  const downloadUrl = (type) => `/api/jobs/${jobId}/download/${type}`
+  const downloadUrl = (type: string): string => `/api/jobs/${jobId}/download/${type}`
 
-  const downloadReplayActions = () => {
+  const downloadReplayActions = (): void => {
     const replayData = {
       actions: results.replay_actions,
       url: results.url,
@@ -33,7 +53,7 @@ export default function ResultsViewer({ results, jobId }) {
     URL.revokeObjectURL(url)
   }
 
-  const executeReplay = async () => {
+  const executeReplay = async (): Promise<void> => {
     if (!results.replay_actions || results.replay_actions.length === 0) {
       alert('No replay actions available')
       return
@@ -46,9 +66,9 @@ export default function ResultsViewer({ results, jobId }) {
         results.url,
         null, // user_email
         null, // user_password
-        results.test_case_text, // test instructions
-        results.test_expectations, // success criteria
-        results.expected_outcome // expected outcome
+        results.test_case_text || null, // test instructions
+        results.test_expectations || null, // success criteria
+        results.expected_outcome || null // expected outcome
       )
 
       // Navigate to replay job

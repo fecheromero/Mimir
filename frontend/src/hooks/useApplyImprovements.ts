@@ -6,7 +6,7 @@ interface Improvement {
   title: string
   file_path: string
   diff: string
-  confidence: number
+  confidence: string
 }
 
 interface ApplyResult {
@@ -25,7 +25,8 @@ interface UseApplyImprovementsResult {
   applyImprovements: (
     prId: string,
     improvements: Improvement[],
-    commitMessage?: string
+    commitMessage?: string,
+    reviewId?: string
   ) => Promise<void>
   reset: () => void
 }
@@ -39,7 +40,8 @@ export function useApplyImprovements(): UseApplyImprovementsResult {
     async (
       prId: string,
       improvements: Improvement[],
-      commitMessage?: string
+      commitMessage?: string,
+      reviewId?: string
     ) => {
       try {
         setApplying(true)
@@ -49,7 +51,8 @@ export function useApplyImprovements(): UseApplyImprovementsResult {
         const response = await prReviewsApi.applyImprovements(
           prId,
           improvements,
-          commitMessage
+          commitMessage,
+          reviewId
         )
 
         setResult(response)

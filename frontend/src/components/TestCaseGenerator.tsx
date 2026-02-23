@@ -1,14 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react'
 import { FileText, Loader2, X } from 'lucide-react'
 
 const STORAGE_KEY = 'mimir_ticket_description'
 
-export default function TestCaseGenerator({ onGenerate, loading }) {
-  const [description, setDescription] = useState('')
-  const [url, setUrl] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  const [userPassword, setUserPassword] = useState('')
-  const [showCredentials, setShowCredentials] = useState(false)
+interface TestCaseGeneratorProps {
+  onGenerate: (data: {
+    description: string
+    url: string
+    userEmail: string | null
+    userPassword: string | null
+  }) => void
+  loading: boolean
+}
+
+export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGeneratorProps): JSX.Element {
+  const [description, setDescription] = useState<string>('')
+  const [url, setUrl] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [userPassword, setUserPassword] = useState<string>('')
+  const [showCredentials, setShowCredentials] = useState<boolean>(false)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -25,12 +35,12 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
     }
   }, [description])
 
-  const handleClearDescription = () => {
+  const handleClearDescription = (): void => {
     setDescription('')
     localStorage.removeItem(STORAGE_KEY)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     onGenerate({
       description,
@@ -71,7 +81,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
           </div>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent font-mono text-sm transition-all"
             rows={10}
             placeholder="Paste ticket description from Notion..."
@@ -92,7 +102,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
           <input
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
             placeholder="https://example.com"
             required
@@ -105,7 +115,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
             <input
               type="checkbox"
               checked={showCredentials}
-              onChange={(e) => setShowCredentials(e.target.checked)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setShowCredentials(e.target.checked)}
               className="rounded border-gray-300 text-[#3B82F6] focus:ring-[#3B82F6] w-4 h-4"
               disabled={loading}
             />
@@ -125,7 +135,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
               <input
                 type="email"
                 value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value)}
                 placeholder="user@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
                 disabled={loading}
@@ -139,7 +149,7 @@ export default function TestCaseGenerator({ onGenerate, loading }) {
               <input
                 type="password"
                 value={userPassword}
-                onChange={(e) => setUserPassword(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
                 disabled={loading}
