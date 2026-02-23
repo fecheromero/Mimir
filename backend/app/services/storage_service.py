@@ -36,7 +36,7 @@ class StorageService:
         job_dir = self.get_job_dir(job_id)
         file_path = job_dir / "test_cases.json"
 
-        with open(file_path, 'w', encoding='utf-8') as f:
+ with open(file_path, "w", encoding="utf-8") as f:
             json.dump(test_cases, f, indent=2, ensure_ascii=False)
 
         return str(file_path)
@@ -55,7 +55,6 @@ class StorageService:
         job_dir = self.get_job_dir(job_id)
         file_path = job_dir / "results.json"
 
-        with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
 
         return str(file_path)
@@ -74,7 +73,6 @@ class StorageService:
         job_dir = self.get_job_dir(job_id)
         file_path = job_dir / "report.md"
 
-        with open(file_path, 'w', encoding='utf-8') as f:
             f.write(report)
 
         return str(file_path)
@@ -148,7 +146,6 @@ class StorageService:
         review_dir = self.get_pr_review_dir(pr_id, review_id)
         file_path = review_dir / "review.json"
 
-        with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(review_data, f, indent=2, ensure_ascii=False)
 
         return str(file_path)
