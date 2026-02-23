@@ -179,7 +179,7 @@ export const prReviewsApi = {
     return response.data
   },
 
-  applyImprovements: async (prId, improvements, commitMessage = null) => {
+  applyImprovements: async (prId, improvements, commitMessage = null, reviewId = null) => {
     const response = await api.post(
       `/api/pr-reviews/${encodeURIComponent(prId)}/improvements/apply`,
       {
@@ -191,7 +191,8 @@ export const prReviewsApi = {
           title: imp.title,
           confidence: imp.confidence
         })),
-        commit_message: commitMessage
+        commit_message: commitMessage,
+        review_id: reviewId
       }
     )
     return response.data

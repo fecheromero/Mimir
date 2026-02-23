@@ -72,6 +72,7 @@ class ApplyImprovementsRequest(BaseModel):
     improvement_ids: list[str]
     improvements: list[ImprovementToApply]
     commit_message: Optional[str] = None
+    review_id: Optional[str] = None  # For checking if review is outdated
 
 
 async def execute_sync_review(pr_id: str) -> dict:
@@ -794,6 +795,32 @@ async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
         # Check if PR exists
         if not redis_client.exists(f"pr:{pr_id}"):
             raise HTTPException(status_code=404, detail="PR not found")
+
+        # Check if review is outdated (if review_id provided)
+        if request.review_id:
+            from app.services.storage_service import StorageService
+            from app.services.github_service import GitHubService
+
+            storage = StorageService()
+            review_data = storage.load_pr_review(pr_id, request.review_id)
+
+            if review_data:
+                # Get current PR info
+                github_service = GitHubService(settings.github_token)
+                parts = pr_id.split('/')
+                if len(parts) == 3:
+                    owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+                    current_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+                    # Check if review is outdated
+                    review_head_sha = review_data.get("pr_head_sha", "")
+                    current_head_sha = current_pr_info.get("head_sha", "")
+
+                    if review_head_sha and review_head_sha != current_head_sha:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Cannot apply improvements - review is outdated. Review was generated at commit {review_head_sha[:7]}, but PR is now at {current_head_sha[:7]}. Please generate a new review."
+                        )
 
         # Validate GitHub token
         if not settings.github_token:
