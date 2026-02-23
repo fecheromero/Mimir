@@ -5,14 +5,40 @@ import TestCaseUploader from '../components/TestCaseUploader'
 import ReplayUploader from '../components/ReplayUploader'
 import { testCasesApi } from '../services/api'
 
-export default function Dashboard() {
-  const [loading, setLoading] = useState(false)
+interface GenerateData {
+  description: string
+  url: string
+  userEmail: string | null
+  userPassword: string | null
+}
+
+interface UploadData {
+  file: File
+  url: string
+  userEmail: string | null
+  userPassword: string | null
+  headless: boolean
+}
+
+interface ReplayData {
+  file: File
+  userEmail: string | null
+  userPassword: string | null
+  headless: boolean
+}
+
+interface ApiResponse {
+  job_id: string
+}
+
+export default function Dashboard(): JSX.Element {
+  const [loading, setLoading] = useState<boolean>(false)
   const navigate = useNavigate()
 
-  const handleGenerate = async (data) => {
+  const handleGenerate = async (data: GenerateData): Promise<void> => {
     try {
       setLoading(true)
-      const response = await testCasesApi.generate(
+      const response: ApiResponse = await testCasesApi.generate(
         data.description
       )
 
@@ -33,10 +59,10 @@ export default function Dashboard() {
     }
   }
 
-  const handleUpload = async (data) => {
+  const handleUpload = async (data: UploadData): Promise<void> => {
     try {
       setLoading(true)
-      const response = await testCasesApi.uploadAndExecute(
+      const response: ApiResponse = await testCasesApi.uploadAndExecute(
         data.file,
         data.url,
         data.userEmail,
@@ -56,10 +82,10 @@ export default function Dashboard() {
     }
   }
 
-  const handleReplay = async (data) => {
+  const handleReplay = async (data: ReplayData): Promise<void> => {
     try {
       setLoading(true)
-      const response = await testCasesApi.uploadAndReplay(
+      const response: ApiResponse = await testCasesApi.uploadAndReplay(
         data.file,
         data.userEmail,
         data.userPassword,

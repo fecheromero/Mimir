@@ -1,17 +1,28 @@
-import { useState } from 'react'
+import { useState, FormEvent, ChangeEvent } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
 import BrowserSettings from './BrowserSettings'
 
-export default function TestCaseUploader({ onUpload, loading }) {
-  const [file, setFile] = useState(null)
-  const [url, setUrl] = useState('')
-  const [userEmail, setUserEmail] = useState('')
-  const [userPassword, setUserPassword] = useState('')
-  const [showCredentials, setShowCredentials] = useState(false)
-  const [headless, setHeadless] = useState(false)
+interface TestCaseUploaderProps {
+  onUpload: (data: {
+    file: File
+    url: string
+    userEmail: string | null
+    userPassword: string | null
+    headless: boolean
+  }) => void
+  loading: boolean
+}
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0]
+export default function TestCaseUploader({ onUpload, loading }: TestCaseUploaderProps): JSX.Element {
+  const [file, setFile] = useState<File | null>(null)
+  const [url, setUrl] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [userPassword, setUserPassword] = useState<string>('')
+  const [showCredentials, setShowCredentials] = useState<boolean>(false)
+  const [headless, setHeadless] = useState<boolean>(false)
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const selectedFile = e.target.files?.[0]
     if (selectedFile && selectedFile.type === 'application/json') {
       setFile(selectedFile)
     } else {
@@ -19,7 +30,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault()
     if (!file) {
       alert('Please select a file')
@@ -73,7 +84,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
           <input
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all"
             placeholder="https://example.com"
           />
@@ -85,7 +96,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
             <input
               type="checkbox"
               checked={showCredentials}
-              onChange={(e) => setShowCredentials(e.target.checked)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setShowCredentials(e.target.checked)}
               className="rounded border-gray-300 text-[#10B981] focus:ring-[#10B981] w-4 h-4"
               disabled={loading}
             />
@@ -105,7 +116,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
               <input
                 type="email"
                 value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value)}
                 placeholder="user@example.com"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all"
                 disabled={loading}
@@ -119,7 +130,7 @@ export default function TestCaseUploader({ onUpload, loading }) {
               <input
                 type="password"
                 value={userPassword}
-                onChange={(e) => setUserPassword(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setUserPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#10B981] focus:border-transparent transition-all"
                 disabled={loading}

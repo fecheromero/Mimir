@@ -119,8 +119,8 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
     setShowApplyModal(true)
   }
 
-  const handleApplyConfirm = async (commitMessage: string) => {
-    await applyImprovements(pr.id, selectedDummyImprovements, commitMessage, reviewId)
+  const handleApplyConfirm = async (commitMessage: string | null) => {
+    await applyImprovements(pr.id, selectedDummyImprovements, commitMessage || undefined, reviewId)
     // Modal will close on success or error
   }
 
@@ -368,7 +368,6 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
       {/* Combined Prompt Modal */}
       {showCombinedPrompt === 'medium' && selectedMedium.length > 1 && (
         <PromptBuilder
-          improvement={null}
           pr={pr}
           category="medium"
           onClose={() => setShowCombinedPrompt(null)}
@@ -379,7 +378,6 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
 
       {showCombinedPrompt === 'experimental' && selectedExperimental.length > 1 && (
         <PromptBuilder
-          improvement={null}
           pr={pr}
           category="experimental"
           onClose={() => setShowCombinedPrompt(null)}

@@ -6,7 +6,7 @@ interface Improvement {
   title: string
   file_path: string
   diff: string
-  confidence: number
+  confidence: string
 }
 
 interface ApplyResult {

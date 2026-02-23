@@ -1,7 +1,41 @@
-import { useState } from 'react'
+import { useState, ChangeEvent } from 'react'
 import { X, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
 import { usePromptGenerator } from '../hooks/usePromptGenerator'
 import PromptPreview from './PromptPreview'
+
+interface Improvement {
+  id: string
+  title: string
+  description: string
+}
+
+interface PR {
+  title?: string
+  repo?: string
+  number?: number
+  author?: string
+  url: string
+  base_branch?: string
+  head_branch: string
+  body?: string
+}
+
+interface PromptData {
+  prompt: string
+  additionalContext: string
+  setAdditionalContext: (context: string) => void
+  copyToClipboard: () => void
+  copied: boolean
+}
+
+interface PromptBuilderProps {
+  improvement?: Improvement | undefined
+  pr: PR | null
+  category: string
+  onClose: () => void
+  isCombined?: boolean
+  combinedPromptData?: PromptData | null
+}
 
 export default function PromptBuilder({
   improvement,
@@ -10,17 +44,21 @@ export default function PromptBuilder({
   onClose,
   isCombined = false,
   combinedPromptData = null
-}) {
-  const [showPreview, setShowPreview] = useState(true)
+}: PromptBuilderProps): JSX.Element {
+  const [showPreview, setShowPreview] = useState<boolean>(true)
 
   // Use combined data if in combined mode, otherwise use single improvement generator
   const singlePromptData = usePromptGenerator(
     improvement || { id: '', title: '', description: '' },
-    pr,
+    pr || { title: '', repo: '', number: 0, author: '', url: '', base_branch: '', head_branch: '' },
     category
   )
 
   const promptData = isCombined ? combinedPromptData : singlePromptData
+
+  if (!promptData) {
+    return <div>Error: No prompt data available</div>
+  }
 
   const {
     prompt,
@@ -68,7 +106,7 @@ export default function PromptBuilder({
             <textarea
               id="context"
               value={additionalContext}
-              onChange={(e) => setAdditionalContext(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAdditionalContext(e.target.value)}
               placeholder={isCombined
                 ? `Add project-specific context for all improvements...
 

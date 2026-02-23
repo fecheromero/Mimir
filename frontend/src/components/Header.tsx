@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Brain } from 'lucide-react'
 
-export default function Header() {
+export default function Header(): JSX.Element {
   return (
     <header className="bg-white shadow">
       <div className="container mx-auto px-4 py-6">

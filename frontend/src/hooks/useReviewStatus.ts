@@ -10,8 +10,8 @@ interface UseReviewStatusResult {
 }
 
 export function useReviewStatus(
-  prId: string | null,
-  reviewId: string | null
+  prId: string | null | undefined,
+  reviewId: string | null | undefined
 ): UseReviewStatusResult {
   const [status, setStatus] = useState<ReviewStatus | null>(null)
   const [loading, setLoading] = useState(false)

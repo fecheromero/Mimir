@@ -31,7 +31,7 @@ export default function PRDetail() {
     rejectSuggestion
   } = usePRDetails(decodedPrId)
 
-  const { status: reviewStatus } = useReviewStatus(pr?.id, selectedReview?.reviewId)
+  const { status: reviewStatus } = useReviewStatus(pr?.id || null, selectedReview?.reviewId)
 
   const handleRunReview = async () => {
     try {
@@ -57,7 +57,8 @@ export default function PRDetail() {
       alert('Rule suggestion approved and applied!')
     } catch (err) {
       console.error('Error approving suggestion:', err)
-      alert('Failed to approve suggestion: ' + err.message)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      alert('Failed to approve suggestion: ' + errorMessage)
     } finally {
       setSuggestionAction(null)
     }
@@ -70,7 +71,8 @@ export default function PRDetail() {
       alert('Rule suggestion rejected')
     } catch (err) {
       console.error('Error rejecting suggestion:', err)
-      alert('Failed to reject suggestion: ' + err.message)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      alert('Failed to reject suggestion: ' + errorMessage)
     } finally {
       setSuggestionAction(null)
     }
@@ -372,18 +374,18 @@ export default function PRDetail() {
                           ) : (
                             <div className="bg-gray-900/50 rounded-lg p-4 mb-4">
                               <pre className="text-gray-200 text-sm whitespace-pre-wrap font-mono">
-                                {selectedReview.ruleSuggestion.suggestion}
+                                {selectedReview.ruleSuggestion?.suggestion}
                               </pre>
                             </div>
                           )}
 
-                          {selectedReview.ruleSuggestion.rationale && (
+                          {selectedReview.ruleSuggestion?.rationale && (
                             <div className="mb-4">
                               <p className="text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wide">
                                 Rationale:
                               </p>
                               <p className="text-gray-300 text-sm italic">
-                                {selectedReview.ruleSuggestion.rationale}
+                                {selectedReview.ruleSuggestion?.rationale}
                               </p>
                             </div>
                           )}

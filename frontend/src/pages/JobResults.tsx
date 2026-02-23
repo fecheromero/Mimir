@@ -6,18 +6,69 @@ import TestCaseViewer from '../components/TestCaseViewer'
 import ResultsViewer from '../components/ResultsViewer'
 import { jobsApi, testCasesApi } from '../services/api'
 
-export default function JobResults() {
-  const { jobId } = useParams()
+interface JobStatusData {
+  status: string
+  progress: number
+  current_step: string
+}
+
+interface TestCase {
+  test_case_text: string
+  created_at: string
+  ticket_id: string
+}
+
+interface TestCasesResponse {
+  test_cases: TestCase
+}
+
+interface Action {
+  [key: string]: unknown
+}
+
+interface TestResults {
+  replay_actions?: Action[]
+  url: string
+  test_case_text?: string
+  test_expectations?: string
+  expected_outcome?: string
+  final_result: string
+  actions?: Action[]
+  executed_at: string
+}
+
+interface ResultsResponse {
+  results: TestResults
+}
+
+interface LocationState {
+  mode?: string
+  url?: string
+  userEmail?: string | null
+  userPassword?: string | null
+}
+
+interface BrowserSettings {
+  headless: boolean
+}
+
+interface ApiResponse {
+  job_id: string
+}
+
+export default function JobResults(): JSX.Element {
+  const { jobId } = useParams<{ jobId: string }>()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [status, setStatus] = useState(null)
-  const [testCases, setTestCases] = useState(null)
-  const [results, setResults] = useState(null)
-  const [executing, setExecuting] = useState(false)
+  const [status, setStatus] = useState<JobStatusData | null>(null)
+  const [testCases, setTestCases] = useState<TestCase | null>(null)
+  const [results, setResults] = useState<TestResults | null>(null)
+  const [executing, setExecuting] = useState<boolean>(false)
 
-  const mode = location.state?.mode || 'execute'
-  const generationData = location.state || {}
+  const locationState = location.state as LocationState | null
+  const mode = locationState?.mode || 'execute'
+  const generationData = locationState || {}
 
   // Reset state when jobId changes (navigating to a new job)
   useEffect(() => {
@@ -28,21 +79,23 @@ export default function JobResults() {
 
   // Poll job status
   useEffect(() => {
-    const pollStatus = async () => {
+    const pollStatus = async (): Promise<void> => {
       try {
-        const statusData = await jobsApi.getStatus(jobId)
+        if (!jobId) return
+
+        const statusData: JobStatusData = await jobsApi.getStatus(jobId)
         setStatus(statusData)
 
         // If generation is complete and we haven't loaded test cases yet
         if (statusData.status === 'completed' && mode === 'generate' && !testCases) {
-          const testCasesData = await jobsApi.getTestCases(jobId)
+          const testCasesData: TestCasesResponse = await jobsApi.getTestCases(jobId)
           setTestCases(testCasesData.test_cases)
         }
 
         // If execution/replay is complete/failed and we haven't loaded results yet
         if ((statusData.status === 'completed' || statusData.status === 'failed') && (mode === 'execute' || mode === 'replay') && !results) {
           try {
-            const resultsData = await jobsApi.getResults(jobId)
+            const resultsData: ResultsResponse = await jobsApi.getResults(jobId)
             setResults(resultsData.results)
           } catch (error) {
             // Results might not be available for some failures
@@ -69,14 +122,16 @@ export default function JobResults() {
     return () => clearInterval(interval)
   }, [jobId, mode, status?.status, testCases, results])
 
-  const handleExecute = async (browserSettings) => {
+  const handleExecute = async (browserSettings: BrowserSettings): Promise<void> => {
     try {
+      if (!testCases) return
+
       setExecuting(true)
-      const response = await testCasesApi.execute(
+      const response: ApiResponse = await testCasesApi.execute(
         testCases.test_case_text,
-        generationData.url,
-        generationData.userEmail,
-        generationData.userPassword,
+        generationData.url || '',
+        generationData.userEmail || null,
+        generationData.userPassword || null,
         browserSettings.headless
       )
 
@@ -92,7 +147,7 @@ export default function JobResults() {
     }
   }
 
-  const handleDownloadTestCases = () => {
+  const handleDownloadTestCases = (): void => {
     const blob = new Blob([JSON.stringify(testCases, null, 2)], {
       type: 'application/json'
     })
@@ -142,7 +197,7 @@ export default function JobResults() {
         )}
 
         {/* Results Viewer (only show for execution mode or after execution) */}
-        {results && (
+        {results && jobId && (
           <ResultsViewer results={results} jobId={jobId} />
         )}
       </div>

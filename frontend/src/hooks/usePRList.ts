@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { prReviewService } from '@services'
 import { PullRequest } from '@models'
-import { withRetry, isRetryableError } from '../utils/retry'
+import { withRetry } from '../utils/retry'
 import { errorService } from '@services/ErrorService'
 
 interface UsePRListResult {

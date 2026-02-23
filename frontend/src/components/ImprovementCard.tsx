@@ -3,6 +3,38 @@ import { MessageSquare, CheckCircle2 } from 'lucide-react'
 import DiffPreview from './DiffPreview'
 import PromptBuilder from './PromptBuilder'
 
+interface Improvement {
+  id: string
+  title: string
+  description: string
+  file_path?: string
+  line_start?: number
+  files?: string[]
+  type?: string
+  diff?: string
+  impact?: string
+  risk?: string
+  effort?: string
+  files_affected_count?: number
+  rationale?: string
+  confidence?: number
+}
+
+interface PR {
+  url: string
+  head_branch: string
+}
+
+interface ImprovementCardProps {
+  improvement: Improvement
+  category: string
+  selected?: boolean
+  onToggle?: ((id: string, checked: boolean) => void) | null
+  showCheckbox?: boolean
+  pr?: PR | null
+  merged?: boolean
+}
+
 export default function ImprovementCard({
   improvement,
   category,
@@ -11,9 +43,10 @@ export default function ImprovementCard({
   showCheckbox = false,
   pr = null,
   merged = false
-}) {
-  const [showPromptBuilder, setShowPromptBuilder] = useState(false)
-  const getBadgeColor = (confidence) => {
+}: ImprovementCardProps): JSX.Element {
+  const [showPromptBuilder, setShowPromptBuilder] = useState<boolean>(false)
+
+  const getBadgeColor = (confidence: number): string => {
     if (confidence >= 0.9) return 'bg-green-500/20 text-green-400 border-green-500/30'
     if (confidence >= 0.75) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
     return 'bg-orange-500/20 text-orange-400 border-orange-500/30'

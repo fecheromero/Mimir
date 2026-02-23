@@ -18,12 +18,12 @@ interface Improvement {
 }
 
 interface PRInfo {
-  title: string
-  repo: string
-  number: number
-  author: string
+  title?: string
+  repo?: string
+  number?: number
+  author?: string
   url: string
-  base_branch: string
+  base_branch?: string
   head_branch: string
   body?: string
 }
@@ -40,7 +40,7 @@ interface UsePromptGeneratorResult {
 export function usePromptGenerator(
   improvement: Improvement,
   pr: PRInfo,
-  category: 'medium' | 'experimental'
+  category: string
 ): UsePromptGeneratorResult {
   const [additionalContext, setAdditionalContext] = useState('')
   const [copied, setCopied] = useState(false)
