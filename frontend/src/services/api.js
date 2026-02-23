@@ -178,6 +178,31 @@ export const prReviewsApi = {
     })
     return response.data
   },
+
+  applyImprovements: async (prId, improvements, commitMessage = null) => {
+    const response = await api.post(
+      `/api/pr-reviews/${encodeURIComponent(prId)}/improvements/apply`,
+      {
+        improvement_ids: improvements.map(imp => imp.id),
+        improvements: improvements.map(imp => ({
+          id: imp.id,
+          file_path: imp.file_path,
+          diff: imp.diff,
+          title: imp.title,
+          confidence: imp.confidence
+        })),
+        commit_message: commitMessage
+      }
+    )
+    return response.data
+  },
+
+  getReviewStatus: async (prId, reviewId) => {
+    const response = await api.get(
+      `/api/pr-reviews/${encodeURIComponent(prId)}/reviews/${reviewId}/status`
+    )
+    return response.data
+  },
 }
 
 export default api

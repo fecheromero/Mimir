@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, CheckCircle2 } from 'lucide-react'
 import DiffPreview from './DiffPreview'
 import PromptBuilder from './PromptBuilder'
 
@@ -9,7 +9,8 @@ export default function ImprovementCard({
   selected = false,
   onToggle = null,
   showCheckbox = false,
-  pr = null
+  pr = null,
+  merged = false
 }) {
   const [showPromptBuilder, setShowPromptBuilder] = useState(false)
   const getBadgeColor = (confidence) => {
@@ -32,7 +33,15 @@ export default function ImprovementCard({
 
         <div className="flex-1">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-white font-medium">{improvement.title}</h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-white font-medium">{improvement.title}</h4>
+              {merged && (
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs border border-green-500/30">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Merged</span>
+                </div>
+              )}
+            </div>
 
             {improvement.confidence && (
               <div className={`px-2 py-0.5 rounded text-xs border ${getBadgeColor(improvement.confidence)}`}>

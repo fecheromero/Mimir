@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers } from 'lucide-react'
+import { ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink } from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
 import PromptBuilder from './PromptBuilder'
+import ApplyConfirmationModal from './ApplyConfirmationModal'
 import { useCombinedPromptGenerator } from '../hooks/useCombinedPromptGenerator'
+import { useApplyImprovements } from '../hooks/useApplyImprovements'
+import { useReviewStatus } from '../hooks/useReviewStatus'
 import PromptPreview from './PromptPreview'
 
-export default function StructuredReview({ reviewData, pr }) {
+export default function StructuredReview({ reviewData, pr, reviewId }) {
   const [expandedSections, setExpandedSections] = useState({
     dummy: true,
     medium: false,
@@ -16,6 +19,20 @@ export default function StructuredReview({ reviewData, pr }) {
   const [selectedMedium, setSelectedMedium] = useState([])
   const [selectedExperimental, setSelectedExperimental] = useState([])
   const [showCombinedPrompt, setShowCombinedPrompt] = useState(null) // 'medium' | 'experimental' | null
+  const [showApplyModal, setShowApplyModal] = useState(false)
+
+  // Hook for applying improvements
+  const { applying, error, result, applyImprovements, reset } = useApplyImprovements()
+
+  // Hook for review status (merged improvements, outdated check)
+  const { status: reviewStatus } = useReviewStatus(pr?.id, reviewId)
+
+  // Helper to check if improvement is merged
+  const isImprovementMerged = (improvementId) => {
+    if (!reviewStatus?.improvements_status) return false
+    const status = reviewStatus.improvements_status.find(s => s.id === improvementId)
+    return status?.merged || false
+  }
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -63,6 +80,11 @@ export default function StructuredReview({ reviewData, pr }) {
     imp => selectedExperimental.includes(imp.id)
   ) || []
 
+  // Get selected improvements objects
+  const selectedDummyImprovements = reviewData.dummy_improvements?.filter(
+    imp => selectedImprovements.includes(imp.id)
+  ) || []
+
   // Combined prompt generators
   const mediumCombinedPrompt = useCombinedPromptGenerator(
     selectedMediumImprovements,
@@ -75,6 +97,27 @@ export default function StructuredReview({ reviewData, pr }) {
     pr,
     'experimental'
   )
+
+  // Handle apply improvements
+  const handleApplyClick = () => {
+    setShowApplyModal(true)
+  }
+
+  const handleApplyConfirm = async (commitMessage) => {
+    await applyImprovements(pr.id, selectedDummyImprovements, commitMessage)
+    // Modal will close on success or error
+  }
+
+  const handleApplyCancel = () => {
+    setShowApplyModal(false)
+    reset()
+  }
+
+  // Close modal and clear selection on success
+  if (result?.success && showApplyModal) {
+    setShowApplyModal(false)
+    setSelectedImprovements([])
+  }
 
   const dummyCount = reviewData.dummy_improvements?.length || 0
   const mediumCount = reviewData.medium_improvements?.length || 0
@@ -128,29 +171,33 @@ export default function StructuredReview({ reviewData, pr }) {
               </p>
             ) : (
               <>
-                {reviewData.dummy_improvements.map((improvement) => (
-                  <ImprovementCard
-                    key={improvement.id}
-                    improvement={improvement}
-                    category="dummy"
-                    selected={selectedImprovements.includes(improvement.id)}
-                    onToggle={handleToggleImprovement}
-                    showCheckbox={true}
-                  />
-                ))}
+                {reviewData.dummy_improvements.map((improvement) => {
+                  const isMerged = isImprovementMerged(improvement.id)
+                  return (
+                    <ImprovementCard
+                      key={improvement.id}
+                      improvement={improvement}
+                      category="dummy"
+                      selected={selectedImprovements.includes(improvement.id)}
+                      onToggle={isMerged ? null : handleToggleImprovement}
+                      showCheckbox={!isMerged}
+                      merged={isMerged}
+                    />
+                  )
+                })}
 
                 {selectedImprovements.length > 0 && (
-                  <div className="mt-4 flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <span className="text-blue-400 text-sm">
+                  <div className="mt-4 flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                    <span className="text-green-400 text-sm">
                       {selectedImprovements.length} improvement(s) selected
                     </span>
                     <button
-                      disabled
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium opacity-50 cursor-not-allowed flex items-center gap-2"
-                      title="Coming in Phase 3"
+                      onClick={handleApplyClick}
+                      disabled={applying}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <CheckSquare className="w-4 h-4" />
-                      Apply Selected (Coming Soon)
+                      {applying ? 'Applying...' : 'Apply Selected'}
                     </button>
                   </div>
                 )}
@@ -307,6 +354,56 @@ export default function StructuredReview({ reviewData, pr }) {
           isCombined={true}
           combinedPromptData={experimentalCombinedPrompt}
         />
+      )}
+
+      {/* Apply Confirmation Modal */}
+      {showApplyModal && (
+        <ApplyConfirmationModal
+          improvements={selectedDummyImprovements}
+          pr={pr}
+          onConfirm={handleApplyConfirm}
+          onCancel={handleApplyCancel}
+          applying={applying}
+        />
+      )}
+
+      {/* Success Toast */}
+      {result?.success && !showApplyModal && (
+        <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-slide-up">
+          <CheckSquare className="w-5 h-5" />
+          <div>
+            <p className="font-semibold">Successfully applied {result.improvements_applied} improvements!</p>
+            {result.commit_url && (
+              <a
+                href={result.commit_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline flex items-center gap-1 mt-1 hover:text-green-100"
+              >
+                View commit <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error Toast */}
+      {error && !showApplyModal && (
+        <div className="fixed bottom-6 right-6 bg-red-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-slide-up">
+          <div className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">
+            !
+          </div>
+          <div>
+            <p className="font-semibold">Failed to apply improvements</p>
+            <p className="text-sm mt-1">{error}</p>
+          </div>
+          <button
+            onClick={reset}
+            className="ml-4 p-1 hover:bg-red-700 rounded transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
     </div>
   )

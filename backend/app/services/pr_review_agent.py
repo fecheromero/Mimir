@@ -4,6 +4,7 @@ PR Review Agent - Generates code reviews using LLM.
 import os
 import json
 import re
+import time
 from typing import Optional, Dict, List
 from ..core.llm_factory import get_llm_for_test_generation
 
@@ -23,6 +24,46 @@ class PRReviewAgent:
         self.llm_client = get_llm_for_test_generation()
         self.reviewer_rules = self._load_reviewer_rules()
         self.system_prompt = self._build_system_prompt()
+
+    def _call_llm_with_retry(self, **kwargs):
+        """
+        Call LLM with exponential backoff retry for rate limits.
+
+        Args:
+            **kwargs: Arguments to pass to llm_client.messages.create()
+
+        Returns:
+            Response from LLM
+
+        Raises:
+            Exception: If all retries fail
+        """
+        max_retries = 3
+        base_delay = 2  # Start with 2 second delay
+
+        for attempt in range(max_retries):
+            try:
+                return self.llm_client.messages.create(**kwargs)
+            except Exception as e:
+                error_str = str(e)
+
+                # Check if it's a rate limit error (429)
+                if "rate_limit_error" in error_str or "429" in error_str:
+                    if attempt < max_retries - 1:
+                        # Exponential backoff: 2s, 4s, 8s
+                        delay = base_delay * (2 ** attempt)
+                        print(f"Rate limit hit. Retrying in {delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        # Last attempt failed
+                        raise Exception(f"Rate limit exceeded after {max_retries} retries. Please try again later or reduce PR size.")
+                else:
+                    # Not a rate limit error, raise immediately
+                    raise
+
+        # Should never reach here, but just in case
+        raise Exception("Max retries exceeded")
 
     def _load_reviewer_rules(self) -> str:
         """Load reviewer rules from markdown file."""
@@ -123,15 +164,23 @@ Be constructive, specific, and actionable. Focus on teaching, not just pointing 
         # Build user prompt with PR context
         user_prompt = self._build_user_prompt(pr_info, diff, files, additional_context)
 
-        # Call LLM
+        # Call LLM with prompt caching
         messages = [
             {"role": "user", "content": user_prompt}
         ]
 
-        response = self.llm_client.messages.create(
+        # Use prompt caching for system prompt to reduce token usage
+        # System prompt is marked as cache_control to be cached across requests
+        response = self._call_llm_with_retry(
             model=self.llm_client.model,
             max_tokens=4096,
-            system=self.system_prompt,
+            system=[
+                {
+                    "type": "text",
+                    "text": self.system_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             messages=messages
         )
 
@@ -139,6 +188,57 @@ Be constructive, specific, and actionable. Focus on teaching, not just pointing 
         review_text = response.content[0].text
 
         return review_text
+
+    def _filter_diff(self, diff: str) -> str:
+        """
+        Filter diff to remove large generated files that add noise.
+
+        Skips files like:
+        - package-lock.json, yarn.lock, pnpm-lock.yaml
+        - compiled/minified files (.min.js, .min.css)
+        - vendor directories
+        - build artifacts
+        """
+        # Files to completely exclude from diff
+        excluded_patterns = [
+            'package-lock.json',
+            'yarn.lock',
+            'pnpm-lock.yaml',
+            'composer.lock',
+            'Gemfile.lock',
+            'Pipfile.lock',
+            'poetry.lock',
+            '.min.js',
+            '.min.css',
+            'dist/',
+            'build/',
+            'vendor/',
+            'node_modules/',
+            '.bundle.js',
+            '.bundle.css'
+        ]
+
+        # Split diff by files (starts with "diff --git")
+        file_diffs = re.split(r'(diff --git .*?\n)', diff)
+        filtered_parts = []
+
+        current_file = None
+        for i, part in enumerate(file_diffs):
+            if part.startswith('diff --git'):
+                current_file = part
+                filtered_parts.append(part)
+            elif current_file:
+                # Check if this file should be excluded
+                should_exclude = any(pattern in current_file for pattern in excluded_patterns)
+
+                if should_exclude:
+                    # Add a note that this file was skipped
+                    filtered_parts.append(f"... (large generated file skipped)\n")
+                else:
+                    filtered_parts.append(part)
+                current_file = None
+
+        return ''.join(filtered_parts)
 
     def _build_user_prompt(
         self,
@@ -185,15 +285,18 @@ Be constructive, specific, and actionable. Focus on teaching, not just pointing 
         prompt_parts.append("\n## Diff\n")
         prompt_parts.append("```diff")
 
-        # Truncate diff if too large (keep under ~100k tokens)
-        max_diff_chars = 300000  # Approximately 75k tokens
-        if len(diff) > max_diff_chars:
-            prompt_parts.append(diff[:max_diff_chars])
+        # Filter and truncate diff to avoid rate limits
+        # Reduce to 120k characters (~30k tokens) to stay under 30k/min limit
+        filtered_diff = self._filter_diff(diff)
+        max_diff_chars = 120000  # Approximately 30k tokens
+
+        if len(filtered_diff) > max_diff_chars:
+            prompt_parts.append(filtered_diff[:max_diff_chars])
             prompt_parts.append(
-                f"\n... (diff truncated, showing first {max_diff_chars} characters)"
+                f"\n... (diff truncated, showing first {max_diff_chars} characters of {len(diff)} total)"
             )
         else:
-            prompt_parts.append(diff)
+            prompt_parts.append(filtered_diff)
 
         prompt_parts.append("```")
 
@@ -397,10 +500,17 @@ Response format (MUST be valid JSON):
 
         messages = [{"role": "user", "content": user_prompt}]
 
-        response = self.llm_client.messages.create(
+        # Use prompt caching for system prompt and retry on rate limits
+        response = self._call_llm_with_retry(
             model=self.llm_client.model,
             max_tokens=8192,
-            system=system_prompt,
+            system=[
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             messages=messages
         )
 

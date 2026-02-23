@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2 } from 'lucide-react'
+import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2, AlertTriangle } from 'lucide-react'
 import { prReviewsApi } from '../services/api'
 import ReactMarkdown from 'react-markdown'
 import StructuredReview from '../components/StructuredReview'
+import { useReviewStatus } from '../hooks/useReviewStatus'
 
 export default function PRDetail() {
   const { prId } = useParams()
@@ -20,6 +21,9 @@ export default function PRDetail() {
   const [editingSuggestion, setEditingSuggestion] = useState(false)
   const [editedSuggestion, setEditedSuggestion] = useState('')
   const [deletingReview, setDeletingReview] = useState(null) // review_id being deleted
+
+  // Hook for review status (outdated check, merged improvements)
+  const { status: reviewStatus } = useReviewStatus(prInfo?.id, selectedReview?.review_id)
 
   useEffect(() => {
     loadPRDetails()
@@ -364,9 +368,26 @@ export default function PRDetail() {
                   </span>
                 </div>
 
+                {/* Outdated Review Banner */}
+                {reviewStatus?.is_outdated && (
+                  <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="text-yellow-400 font-semibold text-sm mb-1">Review Outdated</h3>
+                        <p className="text-gray-300 text-sm">
+                          This review was generated at commit <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.review_head_sha?.substring(0, 7)}</code>.
+                          The PR has since been updated to <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.current_head_sha?.substring(0, 7)}</code>.
+                          Consider generating a new review.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Render structured review if available, otherwise fall back to markdown */}
                 {selectedReview.review_data ? (
-                  <StructuredReview reviewData={selectedReview.review_data} pr={prInfo} />
+                  <StructuredReview reviewData={selectedReview.review_data} pr={prInfo} reviewId={selectedReview.review_id} />
                 ) : (
                   <div className="prose prose-invert max-w-none">
                     <ReactMarkdown

@@ -96,6 +96,7 @@ class GitHubService:
             "changed_files": data.get("changed_files", 0),
             "base_branch": data["base"]["ref"],
             "head_branch": data["head"]["ref"],
+            "head_sha": data["head"]["sha"],  # Track HEAD commit SHA
         }
 
     def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:

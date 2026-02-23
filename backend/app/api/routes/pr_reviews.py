@@ -11,6 +11,11 @@ import json
 
 from app.core.config import get_settings
 from app.services.github_service import GitHubService
+from app.services.github_commit_service import (
+    GitHubCommitService,
+    Improvement as GitHubImprovement,
+    CommitResult
+)
 from app.workers.tasks import review_pr_task
 
 settings = get_settings()
@@ -51,6 +56,22 @@ class ReviewResponse(BaseModel):
     status: str
     created_at: str
     review_text: Optional[str] = None
+
+
+class ImprovementToApply(BaseModel):
+    """Improvement to apply to PR."""
+    id: str
+    file_path: str
+    diff: str
+    title: str
+    confidence: float
+
+
+class ApplyImprovementsRequest(BaseModel):
+    """Request to apply improvements to PR."""
+    improvement_ids: list[str]
+    improvements: list[ImprovementToApply]
+    commit_message: Optional[str] = None
 
 
 async def execute_sync_review(pr_id: str) -> dict:
@@ -522,6 +543,92 @@ async def get_review(pr_id: str, review_id: str):
         raise HTTPException(status_code=500, detail=f"Error fetching review: {str(e)}")
 
 
+@router.get("/{pr_id:path}/reviews/{review_id}/status")
+async def get_review_status(pr_id: str, review_id: str):
+    """
+    Get status of a review including whether it's outdated and which improvements are merged.
+
+    Args:
+        pr_id: PR identifier
+        review_id: Review identifier
+
+    Returns:
+        Review status information
+    """
+    try:
+        # Check if PR exists
+        if not redis_client.exists(f"pr:{pr_id}"):
+            raise HTTPException(status_code=404, detail="PR not found")
+
+        # Load review data
+        from app.services.storage_service import StorageService
+        storage = StorageService()
+
+        review_data = storage.load_pr_review(pr_id, review_id)
+        if not review_data:
+            raise HTTPException(status_code=404, detail="Review not found")
+
+        # Get current PR info
+        from app.services.github_service import GitHubService
+        github_service = GitHubService(settings.github_token)
+
+        parts = pr_id.split('/')
+        if len(parts) != 3:
+            raise HTTPException(status_code=400, detail="Invalid PR ID format")
+
+        owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+        current_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+        # Check if review is outdated
+        review_head_sha = review_data.get("pr_head_sha", "")
+        current_head_sha = current_pr_info.get("head_sha", "")
+        is_outdated = review_head_sha != current_head_sha and review_head_sha != ""
+
+        # Check merged status of improvements (only for dummy improvements)
+        improvements_status = []
+        structured_review = review_data.get("review_data")
+
+        if structured_review and settings.github_token:
+            from app.services.github_commit_service import (
+                GitHubCommitService,
+                Improvement as GitHubImprovement
+            )
+            commit_service = GitHubCommitService(settings.github_token)
+
+            dummy_improvements = structured_review.get("dummy_improvements", [])
+
+            for imp in dummy_improvements:
+                # Convert to GitHubImprovement for checking
+                gh_improvement = GitHubImprovement(
+                    id=imp["id"],
+                    file_path=imp.get("file_path", ""),
+                    diff=imp.get("diff", ""),
+                    title=imp["title"],
+                    confidence=imp.get("confidence", 0.0)
+                )
+
+                is_merged = commit_service.check_improvement_merged(pr_id, gh_improvement)
+
+                improvements_status.append({
+                    "id": imp["id"],
+                    "merged": is_merged
+                })
+
+        return {
+            "review_id": review_id,
+            "pr_id": pr_id,
+            "is_outdated": is_outdated,
+            "review_head_sha": review_head_sha,
+            "current_head_sha": current_head_sha,
+            "improvements_status": improvements_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking review status: {str(e)}")
+
+
 @router.post("/{pr_id:path}/review")
 async def trigger_review(pr_id: str, request: ReviewPRRequest):
     """
@@ -669,6 +776,76 @@ async def get_pr_details(pr_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching PR details: {str(e)}")
+
+
+@router.post("/{pr_id:path}/improvements/apply")
+async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
+    """
+    Apply dummy improvements to a PR and create a commit.
+
+    Args:
+        pr_id: PR identifier (owner/repo/number)
+        request: Improvements to apply and optional commit message
+
+    Returns:
+        CommitResult with success status and commit details
+    """
+    try:
+        # Check if PR exists
+        if not redis_client.exists(f"pr:{pr_id}"):
+            raise HTTPException(status_code=404, detail="PR not found")
+
+        # Validate GitHub token
+        if not settings.github_token:
+            raise HTTPException(
+                status_code=500,
+                detail="GitHub token not configured"
+            )
+
+        # Convert Pydantic models to GitHubImprovement models
+        improvements = [
+            GitHubImprovement(
+                id=imp.id,
+                file_path=imp.file_path,
+                diff=imp.diff,
+                title=imp.title,
+                confidence=imp.confidence
+            )
+            for imp in request.improvements
+        ]
+
+        # Initialize GitHub commit service
+        commit_service = GitHubCommitService(settings.github_token)
+
+        # Apply improvements and create commit
+        result = commit_service.apply_improvements(
+            pr_id=pr_id,
+            improvements=improvements,
+            commit_message=request.commit_message
+        )
+
+        if not result.success:
+            raise HTTPException(
+                status_code=400,
+                detail=result.error or "Failed to apply improvements"
+            )
+
+        return {
+            "success": True,
+            "commit_sha": result.commit_sha,
+            "commit_url": result.commit_url,
+            "files_changed": result.files_changed,
+            "improvements_applied": len(result.improvements_applied),
+            "message": f"Successfully applied {len(improvements)} improvements"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error applying improvements: {str(e)}"
+        )
 
 
 @router.delete("/{pr_id:path}")

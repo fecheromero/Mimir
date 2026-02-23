@@ -697,6 +697,7 @@ def review_pr_task(self, review_id: str, pr_id: str):
             "review_id": review_id,
             "pr_id": pr_id,
             "pr_url": pr_info["url"],
+            "pr_head_sha": pr_info.get("head_sha", ""),  # Track PR HEAD at review time
             "created_at": datetime.utcnow().isoformat(),
             "review_text": review_text,  # Markdown (backward compat)
             "review_data": structured_review,  # Structured JSON
