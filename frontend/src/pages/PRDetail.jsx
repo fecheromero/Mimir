@@ -1,80 +1,42 @@
-import { useState, useEffect } from 'react'
- import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2 } from 'lucide-react'
-import { prReviewsApi } from '../services/api'
+import { useState } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { ArrowLeft, GitPullRequest, Play, Clock, CheckCircle, AlertCircle, ExternalLink, Lightbulb, ThumbsUp, ThumbsDown, Edit3, Trash2, AlertTriangle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import StructuredReview from '../components/StructuredReview'
-import { useReviewStatus } from '../hooks/useReviewStatus'
+import StructuredReview from '@components/StructuredReview'
+import { usePRDetails } from '@hooks/usePRDetails'
+import { useReviewStatus } from '@hooks/useReviewStatus'
 
 export default function PRDetail() {
   const { prId } = useParams()
-  const navigate = useNavigate()
   const decodedPrId = decodeURIComponent(prId)
 
-  const [prInfo, setPrInfo] = useState(null)
-  const [reviews, setReviews] = useState([])
-  const [selectedReview, setSelectedReview] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [reviewing, setReviewing] = useState(false)
-  const [error, setError] = useState(null)
-  const [suggestionAction, setSuggestionAction] = useState(null) // 'approving' | 'rejecting' | null
+  const [suggestionAction, setSuggestionAction] = useState(null)
   const [editingSuggestion, setEditingSuggestion] = useState(false)
   const [editedSuggestion, setEditedSuggestion] = useState('')
-  const [deletingReview, setDeletingReview] = useState(null) // review_id being deleted
+  const [deletingReview, setDeletingReview] = useState(null)
 
-  // Hook for review status (outdated check, merged improvements)
-  const { status: reviewStatus } = useReviewStatus(prInfo?.id, selectedReview?.review_id)
+  const {
+    pr,
+    reviews,
+    selectedReview,
+    loading,
+    error,
+    loadReviewContent,
+    generateReview,
+    deleteReview,
+    approveSuggestion,
+    rejectSuggestion
+  } = usePRDetails(decodedPrId)
 
-  useEffect(() => {
-    loadPRDetails()
-  }, [decodedPrId])
-
-  const loadPRDetails = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await prReviewsApi.getPRDetails(decodedPrId)
-      setPrInfo(data.pr_info)
-      setReviews(data.reviews || [])
-
-      // Auto-select most recent review
-      if (data.reviews && data.reviews.length > 0) {
-        loadReviewContent(data.reviews[0].review_id)
-      }
-    } catch (err) {
-      console.error('Error loading PR details:', err)
-      setError('Failed to load PR details')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadReviewContent = async (reviewId) => {
-    try {
-      const reviewData = await prReviewsApi.getReview(decodedPrId, reviewId)
-      setSelectedReview(reviewData)
-    } catch (err) {
-      console.error('Error loading review content:', err)
-    }
-  }
+  const { status: reviewStatus } = useReviewStatus(pr?.id, selectedReview?.reviewId)
 
   const handleRunReview = async () => {
     try {
       setReviewing(true)
-      setError(null)
-
-      const result = await prReviewsApi.triggerReview(decodedPrId)
-
-      // Reload PR details to show new review
-      await loadPRDetails()
-
-      // Auto-select the new review
-      if (result.review_id) {
-        await loadReviewContent(result.review_id)
-      }
+      await generateReview()
     } catch (err) {
       console.error('Error running review:', err)
-      setError(err.response?.data?.detail || 'Failed to generate review')
     } finally {
       setReviewing(false)
     }
@@ -83,25 +45,17 @@ export default function PRDetail() {
   const handleApproveSuggestion = async () => {
     try {
       setSuggestionAction('approving')
-      const suggestionToSubmit = editingSuggestion ? editedSuggestion : null
+      const suggestionToSubmit = editingSuggestion ? editedSuggestion : undefined
 
-      await prReviewsApi.approveSuggestion(
-        decodedPrId,
-        selectedReview.review_id,
-        suggestionToSubmit
-      )
+      await approveSuggestion(suggestionToSubmit)
 
-      // Reload review to update suggestion status
-      await loadReviewContent(selectedReview.review_id)
-
-      // Reset edit state
       setEditingSuggestion(false)
       setEditedSuggestion('')
 
       alert('Rule suggestion approved and applied!')
     } catch (err) {
       console.error('Error approving suggestion:', err)
-      alert('Failed to approve suggestion: ' + (err.response?.data?.detail || err.message))
+      alert('Failed to approve suggestion: ' + err.message)
     } finally {
       setSuggestionAction(null)
     }
@@ -110,19 +64,11 @@ export default function PRDetail() {
   const handleRejectSuggestion = async () => {
     try {
       setSuggestionAction('rejecting')
-
-      await prReviewsApi.rejectSuggestion(
-        decodedPrId,
-        selectedReview.review_id
-      )
-
-      // Reload review to update suggestion status
-      await loadReviewContent(selectedReview.review_id)
-
+      await rejectSuggestion()
       alert('Rule suggestion rejected')
     } catch (err) {
       console.error('Error rejecting suggestion:', err)
-      alert('Failed to reject suggestion: ' + (err.response?.data?.detail || err.message))
+      alert('Failed to reject suggestion: ' + err.message)
     } finally {
       setSuggestionAction(null)
     }
@@ -130,7 +76,7 @@ export default function PRDetail() {
 
   const handleEditSuggestion = () => {
     setEditingSuggestion(true)
-    setEditedSuggestion(selectedReview.rule_suggestion?.suggestion || '')
+    setEditedSuggestion(selectedReview?.ruleSuggestion?.suggestion || '')
   }
 
   const handleDeleteReview = async (reviewId) => {
@@ -140,18 +86,10 @@ export default function PRDetail() {
 
     try {
       setDeletingReview(reviewId)
-      await prReviewsApi.deleteReview(decodedPrId, reviewId)
-
-      // Clear selected review if it was deleted
-      if (selectedReview?.review_id === reviewId) {
-        setSelectedReview(null)
-      }
-
-      // Reload PR details to update review list
-      await loadPRDetails()
+      await deleteReview(reviewId)
     } catch (err) {
       console.error('Error deleting review:', err)
-      alert('Failed to delete review: ' + (err.response?.data?.detail || err.message))
+      alert('Failed to delete review: ' + err.message)
     } finally {
       setDeletingReview(null)
     }
@@ -176,7 +114,7 @@ export default function PRDetail() {
     )
   }
 
-  if (!prInfo) {
+  if (!pr) {
     return (
       <div className="min-h-screen bg-[#0A0E14] p-8">
         <div className="max-w-4xl mx-auto">
@@ -209,40 +147,40 @@ export default function PRDetail() {
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <GitPullRequest className="w-6 h-6 text-blue-500" />
-                <h1 className="text-3xl font-bold text-white">{prInfo.title}</h1>
+                <h1 className="text-3xl font-bold text-white">{pr.title}</h1>
                 <span
                   className={`px-3 py-1 text-sm rounded-full ${
-                    prInfo.state === 'open'
+                    pr.isOpen
                       ? 'bg-green-500/20 text-green-400'
                       : 'bg-purple-500/20 text-purple-400'
                   }`}
                 >
-                  {prInfo.state}
+                  {pr.state}
                 </span>
               </div>
 
               <div className="flex items-center gap-4 text-gray-400 mb-4">
-                <span>{prInfo.repo}</span>
+                <span>{pr.repo}</span>
                 <span>•</span>
-                <span>by {prInfo.author}</span>
+                <span>by {pr.author}</span>
                 <span>•</span>
-                <span>{prInfo.base_branch} ← {prInfo.head_branch}</span>
+                <span>{pr.baseRef} ← {pr.headRef}</span>
               </div>
 
-              {prInfo.body && (
-                <p className="text-gray-300 mb-4 whitespace-pre-wrap">{prInfo.body}</p>
+              {pr.body && (
+                <p className="text-gray-300 mb-4 whitespace-pre-wrap">{pr.body}</p>
               )}
 
               <div className="flex items-center gap-6 text-sm text-gray-400">
-                <span className="text-green-400">+{prInfo.additions}</span>
-                <span className="text-red-400">-{prInfo.deletions}</span>
-                <span>{prInfo.changed_files} files changed</span>
+                <span className="text-green-400">+{pr.additions}</span>
+                <span className="text-red-400">-{pr.deletions}</span>
+                <span>{pr.changedFiles} files changed</span>
               </div>
             </div>
 
             <div className="flex gap-3">
               <a
-                href={prInfo.url}
+                href={pr.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg flex items-center gap-2 transition-colors"
@@ -300,7 +238,7 @@ export default function PRDetail() {
                   <div
                     key={review.review_id}
                     className={`relative rounded-lg border transition-colors ${
-                      selectedReview?.review_id === review.review_id
+                      selectedReview?.reviewId === review.review_id
                         ? 'bg-blue-600/20 border-blue-500'
                         : 'bg-[#0F1419] border-gray-800 hover:border-gray-700'
                     }`}
@@ -364,20 +302,20 @@ export default function PRDetail() {
                     </span>
                   </div>
                   <span className="text-gray-400 text-sm">
-                    {formatDate(selectedReview.created_at)}
+                    {formatDate(selectedReview.createdAt.toISOString())}
                   </span>
                 </div>
 
                 {/* Outdated Review Banner */}
-                {reviewStatus?.is_outdated && (
+                {reviewStatus?.isOutdated && (
                   <div className="mb-6 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <h3 className="text-yellow-400 font-semibold text-sm mb-1">Review Outdated</h3>
                         <p className="text-gray-300 text-sm">
-                          This review was generated at commit <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.review_head_sha?.substring(0, 7)}</code>.
-                          The PR has since been updated to <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.current_head_sha?.substring(0, 7)}</code>.
+                          This review was generated at commit <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.reviewShortSha}</code>.
+                          The PR has since been updated to <code className="bg-gray-800 px-1.5 py-0.5 rounded text-xs">{reviewStatus.currentShortSha}</code>.
                           Consider generating a new review.
                         </p>
                       </div>
@@ -386,113 +324,27 @@ export default function PRDetail() {
                 )}
 
                 {/* Render structured review if available, otherwise fall back to markdown */}
-                {selectedReview.review_data ? (
-                  <StructuredReview reviewData={selectedReview.review_data} pr={prInfo} reviewId={selectedReview.review_id} />
-                ) : (
-                  <div className="prose prose-invert max-w-none">
-                    <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => (
-                        <h1 className="text-3xl font-bold text-white mt-8 mb-4">{children}</h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2 className="text-2xl font-bold text-white mt-6 mb-3">{children}</h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 className="text-xl font-semibold text-white mt-4 mb-2">{children}</h3>
-                      ),
-                      h4: ({ children }) => (
-                        <h4 className="text-lg font-semibold text-white mt-3 mb-2">{children}</h4>
-                      ),
-                      h5: ({ children }) => (
-                        <h5 className="text-base font-semibold text-gray-200 mt-3 mb-2">{children}</h5>
-                      ),
-                      h6: ({ children }) => (
-                        <h6 className="text-sm font-semibold text-gray-300 mt-2 mb-1">{children}</h6>
-                      ),
-                      p: ({ children }) => (
-                        <p className="text-gray-300 mb-3 leading-relaxed">{children}</p>
-                      ),
-                      a: ({ href, children }) => (
-                        <a href={href} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">
-                          {children}
-                        </a>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">{children}</ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="list-decimal list-inside text-gray-300 mb-4 space-y-2">{children}</ol>
-                      ),
-                      li: ({ children }) => (
-                        <li className="ml-4 text-gray-300">{children}</li>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-400 my-4">
-                          {children}
-                        </blockquote>
-                      ),
-                      hr: () => (
-                        <hr className="border-gray-700 my-6" />
-                      ),
-                      em: ({ children }) => (
-                        <em className="italic text-gray-300">{children}</em>
-                      ),
-                      strong: ({ children }) => (
-                        <strong className="font-bold text-white">{children}</strong>
-                      ),
-                      code: ({ inline, children }) =>
-                        inline ? (
-                          <code className="bg-gray-800 px-2 py-0.5 rounded text-sm text-blue-300">
-                            {children}
-                          </code>
-                        ) : (
-                          <code className="block bg-gray-800 p-4 rounded text-sm text-gray-200 overflow-x-auto">
-                            {children}
-                          </code>
-                        ),
-                      pre: ({ children }) => (
-                        <pre className="bg-gray-800 p-4 rounded overflow-x-auto mb-4">
-                          {children}
-                        </pre>
-                      ),
-                      table: ({ children }) => (
-                        <table className="min-w-full divide-y divide-gray-700 my-4">
-                          {children}
-                        </table>
-                      ),
-                      thead: ({ children }) => (
-                        <thead className="bg-gray-800">
-                          {children}
-                        </thead>
-                      ),
-                      tbody: ({ children }) => (
-                        <tbody className="divide-y divide-gray-700">
-                          {children}
-                        </tbody>
-                      ),
-                      tr: ({ children }) => (
-                        <tr>{children}</tr>
-                      ),
-                      th: ({ children }) => (
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-white">
-                          {children}
-                        </th>
-                      ),
-                      td: ({ children }) => (
-                        <td className="px-4 py-2 text-sm text-gray-300">
-                          {children}
-                        </td>
-                      ),
+                {selectedReview.hasStructuredReview ? (
+                  <StructuredReview
+                    reviewData={{
+                      summary: selectedReview.summary,
+                      dummy_improvements: selectedReview.dummyImprovements.map(imp => imp.toJson()),
+                      medium_improvements: selectedReview.mediumImprovements.map(imp => imp.toJson()),
+                      experimental_improvements: selectedReview.experimentalImprovements.map(imp => imp.toJson())
                     }}
-                  >
-                    {selectedReview.review_text}
-                  </ReactMarkdown>
+                    pr={pr}
+                    reviewId={selectedReview.reviewId}
+                  />
+                ) : selectedReview.reviewText ? (
+                  <div className="prose prose-invert max-w-none">
+                    <ReactMarkdown>
+                      {selectedReview.reviewText}
+                    </ReactMarkdown>
                   </div>
-                )}
+                ) : null}
 
                 {/* Rule Suggestion Section */}
-                {selectedReview.rule_suggestion && (
+                {selectedReview.hasRuleSuggestion && (
                   <div className="mt-8 pt-6 border-t border-gray-800">
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
                       <div className="flex items-start gap-3 mb-4">
@@ -517,18 +369,18 @@ export default function PRDetail() {
                           ) : (
                             <div className="bg-gray-900/50 rounded-lg p-4 mb-4">
                               <pre className="text-gray-200 text-sm whitespace-pre-wrap font-mono">
-                                {selectedReview.rule_suggestion.suggestion}
+                                {selectedReview.ruleSuggestion.suggestion}
                               </pre>
                             </div>
                           )}
 
-                          {selectedReview.rule_suggestion.rationale && (
+                          {selectedReview.ruleSuggestion.rationale && (
                             <div className="mb-4">
                               <p className="text-gray-400 text-xs font-semibold mb-2 uppercase tracking-wide">
                                 Rationale:
                               </p>
                               <p className="text-gray-300 text-sm italic">
-                                {selectedReview.rule_suggestion.rationale}
+                                {selectedReview.ruleSuggestion.rationale}
                               </p>
                             </div>
                           )}

@@ -27,11 +27,8 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
   // Hook for review status (merged improvements, outdated check)
   const { status: reviewStatus } = useReviewStatus(pr?.id, reviewId)
 
-  // Helper to check if improvement is merged
   const isImprovementMerged = (improvementId) => {
-    if (!reviewStatus?.improvements_status) return false
-    const status = reviewStatus.improvements_status.find(s => s.id === improvementId)
-    return status?.merged || false
+    return reviewStatus?.isImprovementMerged(improvementId) || false
   }
 
   const toggleSection = (section) => {
