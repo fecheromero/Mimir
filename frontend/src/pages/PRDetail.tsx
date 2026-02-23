@@ -6,15 +6,17 @@ import StructuredReview from '@components/StructuredReview'
 import { usePRDetails } from '@hooks/usePRDetails'
 import { useReviewStatus } from '@hooks/useReviewStatus'
 
-export default function PRDetail() {
-  const { prId } = useParams()
-  const decodedPrId = decodeURIComponent(prId)
+type SuggestionAction = 'approving' | 'rejecting' | null
 
-  const [reviewing, setReviewing] = useState(false)
-  const [suggestionAction, setSuggestionAction] = useState(null)
-  const [editingSuggestion, setEditingSuggestion] = useState(false)
-  const [editedSuggestion, setEditedSuggestion] = useState('')
-  const [deletingReview, setDeletingReview] = useState(null)
+export default function PRDetail() {
+  const { prId } = useParams<{ prId: string }>()
+  const decodedPrId = decodeURIComponent(prId!)
+
+  const [reviewing, setReviewing] = useState<boolean>(false)
+  const [suggestionAction, setSuggestionAction] = useState<SuggestionAction>(null)
+  const [editingSuggestion, setEditingSuggestion] = useState<boolean>(false)
+  const [editedSuggestion, setEditedSuggestion] = useState<string>('')
+  const [deletingReview, setDeletingReview] = useState<string | null>(null)
 
   const {
     pr,
@@ -79,7 +81,7 @@ export default function PRDetail() {
     setEditedSuggestion(selectedReview?.ruleSuggestion?.suggestion || '')
   }
 
-  const handleDeleteReview = async (reviewId) => {
+  const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
       return
     }
@@ -87,7 +89,7 @@ export default function PRDetail() {
     try {
       setDeletingReview(reviewId)
       await deleteReview(reviewId)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting review:', err)
       alert('Failed to delete review: ' + err.message)
     } finally {
@@ -95,7 +97,7 @@ export default function PRDetail() {
     }
   }
 
-  const formatDate = (dateStr) => {
+  const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr)
     return date.toLocaleString('en-US', {
       month: 'short',
@@ -105,6 +107,7 @@ export default function PRDetail() {
       minute: '2-digit',
     })
   }
+
 
   if (loading) {
     return (

@@ -1,3 +1,5 @@
+import { MODEL_PARSE_ERRORS, PR_STATE } from '../utils/constants'
+
 export class PullRequest {
   constructor(
     public readonly id: string,
@@ -19,24 +21,42 @@ export class PullRequest {
   ) {}
 
   static fromJson(data: any): PullRequest {
-    return new PullRequest(
-      data.id,
-      data.url,
-      data.repo,
-      data.number,
-      data.title,
-      data.author,
-      data.state,
-      data.base_branch || data.baseRef,
-      data.head_branch || data.headRef,
-      data.head_sha || data.headSha || '',
-      data.body || '',
-      data.additions || 0,
-      data.deletions || 0,
-      data.changed_files || data.changedFiles || 0,
-      new Date(data.created_at || data.createdAt),
-      new Date(data.updated_at || data.updatedAt)
-    )
+    try {
+      // Validate required fields
+      if (!data.id || !data.url || !data.repo || !data.number || !data.title || !data.author) {
+        throw new Error('Missing required fields: id, url, repo, number, title, or author')
+      }
+
+      // Parse dates safely
+      const createdAt = data.created_at || data.createdAt
+      const updatedAt = data.updated_at || data.updatedAt
+
+      if (!createdAt || !updatedAt) {
+        throw new Error('Missing required date fields: created_at or updated_at')
+      }
+
+      return new PullRequest(
+        String(data.id),
+        String(data.url),
+        String(data.repo),
+        Number(data.number),
+        String(data.title),
+        String(data.author),
+        String(data.state || PR_STATE.OPEN),
+        String(data.base_branch || data.baseRef || 'main'),
+        String(data.head_branch || data.headRef || ''),
+        String(data.head_sha || data.headSha || ''),
+        String(data.body || ''),
+        Number(data.additions || 0),
+        Number(data.deletions || 0),
+        Number(data.changed_files || data.changedFiles || 0),
+        new Date(createdAt),
+        new Date(updatedAt)
+      )
+    } catch (error) {
+      console.error(MODEL_PARSE_ERRORS.PULL_REQUEST, error)
+      throw new Error(`${MODEL_PARSE_ERRORS.PULL_REQUEST}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   toJson(): Record<string, any> {

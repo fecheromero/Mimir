@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GitPullRequest, Plus, Trash2, ExternalLink, Clock } from 'lucide-react'
 import { usePRList } from '@hooks/usePRList'
 
 export default function PRReviewer() {
   const navigate = useNavigate()
-  const [prUrl, setPrUrl] = useState('')
-  const [addingPR, setAddingPR] = useState(false)
+  const [prUrl, setPrUrl] = useState<string>('')
+  const [addingPR, setAddingPR] = useState<boolean>(false)
 
   const { prs, loading, error, watchPR, unwatchPR } = usePRList()
 
-  const handleAddPR = async (e) => {
+  const handleAddPR = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!prUrl.trim()) return
 
@@ -25,7 +25,7 @@ export default function PRReviewer() {
     }
   }
 
-  const handleUnwatch = async (prId) => {
+  const handleUnwatch = async (prId: string) => {
     if (!confirm('Are you sure you want to stop watching this PR?')) return
 
     try {
@@ -35,7 +35,7 @@ export default function PRReviewer() {
     }
   }
 
-  const formatDate = (date) => {
+  const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

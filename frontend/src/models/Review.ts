@@ -1,4 +1,5 @@
 import { Improvement } from './Improvement'
+import { MODEL_PARSE_ERRORS, REVIEW_STATUS } from '../utils/constants'
 
 export interface RuleSuggestion {
   suggestion: string
@@ -22,32 +23,74 @@ export class Review {
   ) {}
 
   static fromJson(data: any): Review {
-    const dummyImprovements = (data.review_data?.dummy_improvements || []).map(
-      (imp: any) => Improvement.fromJson(imp, 'dummy')
-    )
+    try {
+      // Validate required fields
+      if (!data.review_id || !data.pr_id) {
+        throw new Error('Missing required fields: review_id or pr_id')
+      }
 
-    const mediumImprovements = (data.review_data?.medium_improvements || []).map(
-      (imp: any) => Improvement.fromJson(imp, 'medium')
-    )
+      if (!data.created_at) {
+        throw new Error('Missing required field: created_at')
+      }
 
-    const experimentalImprovements = (data.review_data?.experimental_improvements || []).map(
-      (imp: any) => Improvement.fromJson(imp, 'experimental')
-    )
+      // Parse improvements arrays safely
+      const dummyImprovements = Array.isArray(data.review_data?.dummy_improvements)
+        ? data.review_data.dummy_improvements
+            .map((imp: any) => {
+              try {
+                return Improvement.fromJson(imp, 'dummy')
+              } catch (error) {
+                console.warn('Failed to parse dummy improvement:', error)
+                return null
+              }
+            })
+            .filter((imp: any) => imp !== null)
+        : []
 
-    return new Review(
-      data.review_id,
-      data.pr_id,
-      data.pr_url || '',
-      data.status || 'pending',
-      new Date(data.created_at),
-      data.pr_head_sha || '',
-      data.review_text || null,
-      data.review_data?.summary || null,
-      dummyImprovements,
-      mediumImprovements,
-      experimentalImprovements,
-      data.rule_suggestion || null
-    )
+      const mediumImprovements = Array.isArray(data.review_data?.medium_improvements)
+        ? data.review_data.medium_improvements
+            .map((imp: any) => {
+              try {
+                return Improvement.fromJson(imp, 'medium')
+              } catch (error) {
+                console.warn('Failed to parse medium improvement:', error)
+                return null
+              }
+            })
+            .filter((imp: any) => imp !== null)
+        : []
+
+      const experimentalImprovements = Array.isArray(data.review_data?.experimental_improvements)
+        ? data.review_data.experimental_improvements
+            .map((imp: any) => {
+              try {
+                return Improvement.fromJson(imp, 'experimental')
+              } catch (error) {
+                console.warn('Failed to parse experimental improvement:', error)
+                return null
+              }
+            })
+            .filter((imp: any) => imp !== null)
+        : []
+
+      return new Review(
+        String(data.review_id),
+        String(data.pr_id),
+        String(data.pr_url || ''),
+        String(data.status || REVIEW_STATUS.PENDING),
+        new Date(data.created_at),
+        String(data.pr_head_sha || ''),
+        data.review_text || null,
+        data.review_data?.summary || null,
+        dummyImprovements,
+        mediumImprovements,
+        experimentalImprovements,
+        data.rule_suggestion || null
+      )
+    } catch (error) {
+      console.error(MODEL_PARSE_ERRORS.REVIEW, error)
+      throw new Error(`${MODEL_PARSE_ERRORS.REVIEW}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   toJson(): Record<string, any> {

@@ -7,19 +7,39 @@ import { useCombinedPromptGenerator } from '../hooks/useCombinedPromptGenerator'
 import { useApplyImprovements } from '../hooks/useApplyImprovements'
 import { useReviewStatus } from '../hooks/useReviewStatus'
 import PromptPreview from './PromptPreview'
+import { PullRequest } from '@models'
 
-export default function StructuredReview({ reviewData, pr, reviewId }) {
-  const [expandedSections, setExpandedSections] = useState({
+interface StructuredReviewProps {
+  reviewData: {
+    summary?: string | null
+    dummy_improvements?: any[]
+    medium_improvements?: any[]
+    experimental_improvements?: any[]
+  }
+  pr: PullRequest | any
+  reviewId: string
+}
+
+type PromptType = 'medium' | 'experimental' | null
+
+interface ExpandedSections {
+  dummy: boolean
+  medium: boolean
+  experimental: boolean
+}
+
+export default function StructuredReview({ reviewData, pr, reviewId }: StructuredReviewProps) {
+  const [expandedSections, setExpandedSections] = useState<ExpandedSections>({
     dummy: true,
     medium: false,
     experimental: false
   })
 
-  const [selectedImprovements, setSelectedImprovements] = useState([])
-  const [selectedMedium, setSelectedMedium] = useState([])
-  const [selectedExperimental, setSelectedExperimental] = useState([])
-  const [showCombinedPrompt, setShowCombinedPrompt] = useState(null) // 'medium' | 'experimental' | null
-  const [showApplyModal, setShowApplyModal] = useState(false)
+  const [selectedImprovements, setSelectedImprovements] = useState<string[]>([])
+  const [selectedMedium, setSelectedMedium] = useState<string[]>([])
+  const [selectedExperimental, setSelectedExperimental] = useState<string[]>([])
+  const [showCombinedPrompt, setShowCombinedPrompt] = useState<PromptType>(null)
+  const [showApplyModal, setShowApplyModal] = useState<boolean>(false)
 
   // Hook for applying improvements
   const { applying, error, result, applyImprovements, reset } = useApplyImprovements()
@@ -27,18 +47,18 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
   // Hook for review status (merged improvements, outdated check)
   const { status: reviewStatus } = useReviewStatus(pr?.id, reviewId)
 
-  const isImprovementMerged = (improvementId) => {
+  const isImprovementMerged = (improvementId: string): boolean => {
     return reviewStatus?.isImprovementMerged(improvementId) || false
   }
 
-  const toggleSection = (section) => {
+  const toggleSection = (section: keyof ExpandedSections): void => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }))
   }
 
-  const handleToggleImprovement = (improvementId, checked) => {
+  const handleToggleImprovement = (improvementId: string, checked: boolean): void => {
     setSelectedImprovements(prev => {
       if (checked) {
         return [...prev, improvementId]
@@ -48,7 +68,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
     })
   }
 
-  const handleToggleMedium = (improvementId, checked) => {
+  const handleToggleMedium = (improvementId: string, checked: boolean): void => {
     setSelectedMedium(prev => {
       if (checked) {
         return [...prev, improvementId]
@@ -58,7 +78,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }) {
     })
   }
 
-  const handleToggleExperimental = (improvementId, checked) => {
+  const handleToggleExperimental = (improvementId: string, checked: boolean): void => {
     setSelectedExperimental(prev => {
       if (checked) {
         return [...prev, improvementId]

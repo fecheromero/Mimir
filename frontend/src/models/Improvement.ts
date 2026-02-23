@@ -1,3 +1,5 @@
+import { MODEL_PARSE_ERRORS, CONFIDENCE_THRESHOLDS } from '../utils/constants'
+
 export type ImprovementCategory = 'dummy' | 'medium' | 'experimental'
 export type ImprovementType =
   | 'remove_unused_import'
@@ -30,26 +32,36 @@ export class Improvement {
   ) {}
 
   static fromJson(data: any, category: ImprovementCategory): Improvement {
-    return new Improvement(
-      data.id,
-      category,
-      data.title,
-      data.description,
-      data.confidence || 0,
-      data.type || null,
-      data.file_path || null,
-      data.files || [],
-      data.line_start || null,
-      data.line_end || null,
-      data.current_content || null,
-      data.replacement || null,
-      data.diff || null,
-      data.impact || null,
-      data.risk || null,
-      data.effort || null,
-      data.files_affected_count || null,
-      data.rationale || null
-    )
+    try {
+      // Validate required fields
+      if (!data.id || !data.title || !data.description) {
+        throw new Error('Missing required fields: id, title, or description')
+      }
+
+      return new Improvement(
+        String(data.id),
+        category,
+        String(data.title),
+        String(data.description),
+        Number(data.confidence || 0),
+        data.type || null,
+        data.file_path || null,
+        Array.isArray(data.files) ? data.files : [],
+        data.line_start ? Number(data.line_start) : null,
+        data.line_end ? Number(data.line_end) : null,
+        data.current_content || null,
+        data.replacement || null,
+        data.diff || null,
+        data.impact || null,
+        data.risk || null,
+        data.effort || null,
+        data.files_affected_count ? Number(data.files_affected_count) : null,
+        data.rationale || null
+      )
+    } catch (error) {
+      console.error(MODEL_PARSE_ERRORS.IMPROVEMENT, error)
+      throw new Error(`${MODEL_PARSE_ERRORS.IMPROVEMENT}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   toJson(): Record<string, any> {
@@ -87,7 +99,7 @@ export class Improvement {
   }
 
   get isAutoApplicable(): boolean {
-    return this.isDummy && this.confidence >= 0.85 && this.diff !== null
+    return this.isDummy && this.confidence >= CONFIDENCE_THRESHOLDS.AUTO_APPLY && this.diff !== null
   }
 
   get confidencePercentage(): number {

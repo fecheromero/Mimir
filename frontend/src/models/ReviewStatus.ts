@@ -1,3 +1,5 @@
+import { MODEL_PARSE_ERRORS } from '../utils/constants'
+
 export interface ImprovementStatus {
   id: string
   merged: boolean
@@ -14,14 +16,29 @@ export class ReviewStatus {
   ) {}
 
   static fromJson(data: any): ReviewStatus {
-    return new ReviewStatus(
-      data.review_id,
-      data.pr_id,
-      data.is_outdated || false,
-      data.review_head_sha || '',
-      data.current_head_sha || '',
-      data.improvements_status || []
-    )
+    try {
+      // Validate required fields
+      if (!data.review_id || !data.pr_id) {
+        throw new Error('Missing required fields: review_id or pr_id')
+      }
+
+      // Validate improvements_status is an array
+      const improvementsStatus = Array.isArray(data.improvements_status)
+        ? data.improvements_status
+        : []
+
+      return new ReviewStatus(
+        String(data.review_id),
+        String(data.pr_id),
+        Boolean(data.is_outdated),
+        String(data.review_head_sha || ''),
+        String(data.current_head_sha || ''),
+        improvementsStatus
+      )
+    } catch (error) {
+      console.error(MODEL_PARSE_ERRORS.REVIEW_STATUS, error)
+      throw new Error(`${MODEL_PARSE_ERRORS.REVIEW_STATUS}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   toJson(): Record<string, any> {

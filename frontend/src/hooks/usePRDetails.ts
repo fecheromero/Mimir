@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { prReviewService } from '@services'
 import { PullRequest, Review } from '@models'
+import { errorService } from '@services/ErrorService'
 
 interface ReviewListItem {
   review_id: string
@@ -15,12 +16,14 @@ interface UsePRDetailsResult {
   selectedReview: Review | null
   loading: boolean
   error: string | null
+  retrying: boolean
   loadPRDetails: () => Promise<void>
   loadReviewContent: (reviewId: string) => Promise<void>
   generateReview: () => Promise<Review>
   deleteReview: (reviewId: string) => Promise<void>
   approveSuggestion: (editedSuggestion?: string) => Promise<void>
   rejectSuggestion: (reason?: string) => Promise<void>
+  retry: () => Promise<void>
 }
 
 export function usePRDetails(prId: string): UsePRDetailsResult {
@@ -29,6 +32,7 @@ export function usePRDetails(prId: string): UsePRDetailsResult {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const loadPRDetails = useCallback(async () => {
     try {
@@ -83,22 +87,32 @@ export function usePRDetails(prId: string): UsePRDetailsResult {
   }, [prId, loadPRDetails, loadReviewContent])
 
   const deleteReview = useCallback(async (reviewId: string) => {
-    try {
-      await prReviewService.deleteReview(prId, reviewId)
+    // Optimistic update - remove review immediately
+    const previousReviews = [...reviews]
+    const previousSelectedReview = selectedReview
 
-      // Clear selected review if it was deleted
+    try {
+      // Update UI optimistically
+      setReviews(prev => prev.filter(r => r.review_id !== reviewId))
       if (selectedReview?.reviewId === reviewId) {
         setSelectedReview(null)
       }
 
-      // Reload PR details to update review list
-      await loadPRDetails()
+      // Make API call
+      await prReviewService.deleteReview(prId, reviewId)
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to delete review'
+      // Rollback on failure
+      setReviews(previousReviews)
+      setSelectedReview(previousSelectedReview)
+
+      const errorMessage = errorService.handleError(err, {
+        title: 'Failed to delete review',
+        logToConsole: true
+      })
       setError(errorMessage)
       throw err
     }
-  }, [prId, selectedReview, loadPRDetails])
+  }, [prId, reviews, selectedReview])
 
   const approveSuggestion = useCallback(async (editedSuggestion?: string) => {
     if (!selectedReview) {
@@ -136,17 +150,28 @@ export function usePRDetails(prId: string): UsePRDetailsResult {
     loadPRDetails()
   }, [loadPRDetails])
 
+  const retry = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await loadPRDetails()
+    } finally {
+      setRetrying(false)
+    }
+  }, [loadPRDetails])
+
   return {
     pr,
     reviews,
     selectedReview,
     loading,
     error,
+    retrying,
     loadPRDetails,
     loadReviewContent,
     generateReview,
     deleteReview,
     approveSuggestion,
-    rejectSuggestion
+    rejectSuggestion,
+    retry
   }
 }
