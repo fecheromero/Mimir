@@ -2,12 +2,15 @@
 API routes for PR reviews.
 """
 import uuid
+import json
+import redis
+import logging
+import shutil
 from datetime import datetime
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import redis
-import json
 
 from app.core.config import get_settings
 from app.services.github_service import GitHubService
@@ -16,11 +19,14 @@ from app.services.github_commit_service import (
     Improvement as GitHubImprovement,
     CommitResult
 )
+from app.services.pr_review_agent import PRReviewAgent
+from app.services.storage_service import StorageService
 from app.workers.tasks import review_pr_task
 
 settings = get_settings()
 redis_client = redis.from_url(settings.redis_url)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class WatchPRRequest(BaseModel):
@@ -80,10 +86,6 @@ async def execute_sync_review(pr_id: str) -> dict:
     Execute PR review synchronously without Celery.
     Returns review results immediately.
     """
-    from app.services.github_service import GitHubService
-    from app.services.pr_review_agent import PRReviewAgent
-    from app.services.storage_service import StorageService
-
     try:
         # Generate review ID
         review_id = str(uuid.uuid4())
@@ -239,7 +241,6 @@ async def get_reviewer_rules():
         Current rules content
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
 
         with open(PRReviewAgent.RULES_FILE_PATH, 'r', encoding='utf-8') as f:
             rules_content = f.read()
@@ -267,8 +268,6 @@ async def approve_rule_suggestion(request: ApproveSuggestionRequest):
         Success message with updated rules
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
-        from app.services.storage_service import StorageService
 
         # Load the review to get the suggestion
         storage = StorageService()
@@ -358,7 +357,6 @@ async def update_reviewer_rules(request: UpdateRulesRequest):
         Success message
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
 
         # Validate content is not empty
         if not request.rules_content.strip():
@@ -492,8 +490,6 @@ async def get_watched_prs():
                     redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
             except Exception as e:
                 # If GitHub fetch fails, use cached data
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
             # Get review count
@@ -528,8 +524,6 @@ async def get_review(pr_id: str, review_id: str):
         Full review data including review text
     """
     try:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.info(f"=== GET REVIEW DEBUG ===")
         logger.info(f"Raw pr_id received: {repr(pr_id)}")
         logger.info(f"Raw review_id received: {repr(review_id)}")
@@ -537,7 +531,6 @@ async def get_review(pr_id: str, review_id: str):
         logger.info(f"pr_id length: {len(pr_id)}")
 
         # Get review from storage (don't verify PR in Redis - it might have been unwatched)
-        from app.services.storage_service import StorageService
         storage = StorageService()
 
         # Build expected path
@@ -571,8 +564,6 @@ async def get_review(pr_id: str, review_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Error fetching review: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error fetching review: {str(e)}")
 
@@ -595,7 +586,6 @@ async def get_review_status(pr_id: str, review_id: str):
             raise HTTPException(status_code=404, detail="PR not found")
 
         # Load review data
-        from app.services.storage_service import StorageService
         storage = StorageService()
 
         review_data = storage.load_pr_review(pr_id, review_id)
@@ -603,7 +593,6 @@ async def get_review_status(pr_id: str, review_id: str):
             raise HTTPException(status_code=404, detail="Review not found")
 
         # Get current PR info
-        from app.services.github_service import GitHubService
         github_service = GitHubService(settings.github_token)
 
         parts = pr_id.split('/')
@@ -623,10 +612,6 @@ async def get_review_status(pr_id: str, review_id: str):
         structured_review = review_data.get("review_data")
 
         if structured_review and settings.github_token:
-            from app.services.github_commit_service import (
-                GitHubCommitService,
-                Improvement as GitHubImprovement
-            )
             commit_service = GitHubCommitService(settings.github_token)
 
             dummy_improvements = structured_review.get("dummy_improvements", [])
@@ -731,10 +716,6 @@ async def delete_review(pr_id: str, review_id: str):
         Success message
     """
     try:
-        import logging
-        import shutil
-        logger = logging.getLogger(__name__)
-
         # Delete from Redis
         redis_client.delete(f"pr_review:{review_id}")
 
@@ -742,7 +723,6 @@ async def delete_review(pr_id: str, review_id: str):
         redis_client.lrem(f"pr:{pr_id}:reviews", 0, review_id)
 
         # Delete review files from storage
-        from app.services.storage_service import StorageService
         storage = StorageService()
         review_dir = storage.base_path / "pr_reviews" / pr_id / review_id
 
@@ -756,8 +736,6 @@ async def delete_review(pr_id: str, review_id: str):
         }
 
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Error deleting review: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error deleting review: {str(e)}")
 
@@ -812,8 +790,6 @@ async def get_pr_details(pr_id: str):
                 redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
         except Exception as e:
             # If GitHub fetch fails, use cached data
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
         # Get review history
@@ -861,7 +837,6 @@ async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
             raise HTTPException(status_code=404, detail="PR not found")
 
         # Get current PR info to check if it's merged
-        from app.services.github_service import GitHubService
         github_service = GitHubService(settings.github_token)
         parts = pr_id.split('/')
 
@@ -880,7 +855,6 @@ async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
 
         # Check if review is outdated (if review_id provided)
         if request.review_id:
-            from app.services.storage_service import StorageService
 
             storage = StorageService()
             review_data = storage.load_pr_review(pr_id, request.review_id)
