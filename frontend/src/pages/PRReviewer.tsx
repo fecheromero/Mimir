@@ -139,12 +139,14 @@ export default function PRReviewer() {
                         </h3>
                         <span
                           className={`px-2 py-1 text-xs rounded-full ${
-                            pr.isOpen
+                            pr.isMerged
+                              ? 'bg-purple-500/20 text-purple-400'
+                              : pr.isOpen
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-purple-500/20 text-purple-400'
+                              : 'bg-red-500/20 text-red-400'
                           }`}
                         >
-                          {pr.state}
+                          {pr.isMerged ? 'merged' : pr.state}
                         </span>
                       </div>
 

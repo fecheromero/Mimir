@@ -77,6 +77,15 @@ class GitHubService:
 
         data = response.json()
 
+        # Determine the actual state: open, closed (not merged), or merged
+        state = data["state"]  # "open" or "closed"
+        merged = data.get("merged", False)
+        merged_at = data.get("merged_at")
+
+        # If PR is closed and merged, state should be "merged"
+        if state == "closed" and merged:
+            state = "merged"
+
         return {
             "id": f"{owner}/{repo}/{pr_number}",
             "url": data["html_url"],
@@ -87,7 +96,9 @@ class GitHubService:
             "title": data["title"],
             "body": data.get("body", ""),
             "author": data["user"]["login"],
-            "state": data["state"],
+            "state": state,  # Now returns "open", "closed", or "merged"
+            "merged": merged,
+            "merged_at": merged_at,
             "created_at": data["created_at"],
             "updated_at": data["updated_at"],
             "mergeable": data.get("mergeable"),
