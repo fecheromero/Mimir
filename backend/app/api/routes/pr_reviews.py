@@ -442,6 +442,8 @@ async def get_watched_prs():
     """
     Get list of all watched PRs.
 
+    Fetches fresh PR data from GitHub to ensure merged status is current.
+
     Returns:
         List of PR information
     """
@@ -450,10 +452,12 @@ async def get_watched_prs():
         pr_ids = redis_client.smembers("watched_prs")
 
         prs = []
+        github_service = GitHubService()
+
         for pr_id_bytes in pr_ids:
             pr_id = pr_id_bytes.decode()
 
-            # Get PR data
+            # Get cached PR data
             pr_data = redis_client.hgetall(f"pr:{pr_id}")
             if not pr_data:
                 # Clean up orphaned PR from watched list
@@ -462,6 +466,37 @@ async def get_watched_prs():
 
             # Convert to dict
             pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
+
+            # Fetch fresh PR info from GitHub to get current state (merged, open, closed)
+            try:
+                parts = pr_id.split('/')
+                if len(parts) == 3:
+                    owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+                    fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+                    # Update state, merged status, and updated_at from fresh data
+                    pr_info["state"] = fresh_pr_info["state"]
+                    pr_info["merged"] = str(fresh_pr_info.get("merged", False))
+                    pr_info["merged_at"] = fresh_pr_info.get("merged_at") or ""
+                    pr_info["updated_at"] = fresh_pr_info["updated_at"]
+                    pr_info["head_sha"] = fresh_pr_info["head_sha"]
+
+                    # Update Redis cache with fresh data
+                    redis_client.hset(
+                        f"pr:{pr_id}",
+                        mapping={
+                            "state": pr_info["state"],
+                            "merged": pr_info["merged"],
+                            "merged_at": pr_info["merged_at"],
+                            "updated_at": pr_info["updated_at"],
+                            "head_sha": pr_info["head_sha"]
+                        }
+                    )
+            except Exception as e:
+                # If GitHub fetch fails, use cached data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
             # Get review count
             review_count = redis_client.llen(f"pr:{pr_id}:reviews")
@@ -738,6 +773,8 @@ async def get_pr_details(pr_id: str):
     """
     Get detailed information about a specific PR including review history.
 
+    Fetches fresh PR data from GitHub to ensure merged status is current.
+
     Args:
         pr_id: PR identifier (owner/repo/number)
 
@@ -751,6 +788,38 @@ async def get_pr_details(pr_id: str):
             raise HTTPException(status_code=404, detail="PR not found")
 
         pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
+
+        # Fetch fresh PR info from GitHub to get current state (merged, open, closed)
+        try:
+            github_service = GitHubService()
+            parts = pr_id.split('/')
+            if len(parts) == 3:
+                owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+                fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+                # Update state, merged status from fresh data
+                pr_info["state"] = fresh_pr_info["state"]
+                pr_info["merged"] = str(fresh_pr_info.get("merged", False))
+                pr_info["merged_at"] = fresh_pr_info.get("merged_at") or ""
+                pr_info["updated_at"] = fresh_pr_info["updated_at"]
+                pr_info["head_sha"] = fresh_pr_info["head_sha"]
+
+                # Update Redis cache
+                redis_client.hset(
+                    f"pr:{pr_id}",
+                    mapping={
+                        "state": pr_info["state"],
+                        "merged": pr_info["merged"],
+                        "merged_at": pr_info["merged_at"],
+                        "updated_at": pr_info["updated_at"],
+                        "head_sha": pr_info["head_sha"]
+                    }
+                )
+        except Exception as e:
+            # If GitHub fetch fails, use cached data
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
         # Get review history
         review_ids = redis_client.lrange(f"pr:{pr_id}:reviews", 0, -1)

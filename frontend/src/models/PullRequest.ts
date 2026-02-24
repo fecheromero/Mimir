@@ -39,6 +39,19 @@ export class PullRequest {
 
       const mergedAt = data.merged_at || data.mergedAt
 
+      // Parse merged status carefully - Redis returns strings "True"/"False"
+      let merged = false
+      if (data.merged !== undefined && data.merged !== null) {
+        if (typeof data.merged === 'boolean') {
+          merged = data.merged
+        } else if (typeof data.merged === 'string') {
+          // Handle string values from Redis
+          merged = data.merged.toLowerCase() === 'true'
+        } else {
+          merged = Boolean(data.merged)
+        }
+      }
+
       return new PullRequest(
         String(data.id),
         String(data.url),
@@ -56,7 +69,7 @@ export class PullRequest {
         Number(data.changed_files || data.changedFiles || 0),
         new Date(createdAt),
         new Date(updatedAt),
-        Boolean(data.merged || false),
+        merged,
         mergedAt ? new Date(mergedAt) : null
       )
     } catch (error) {
