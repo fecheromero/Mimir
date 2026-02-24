@@ -46,29 +46,29 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-6 hover:border-gray-700 transition-colors">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-purple-50 rounded-lg">
-          <Play className="w-6 h-6 text-purple-600" />
+        <div className="p-2 bg-purple-500/20 rounded-lg">
+          <Play className="w-6 h-6 text-purple-400" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-[#111827]">
+          <h2 className="text-xl font-semibold text-white">
             Execute Replay Actions
           </h2>
-          <p className="text-sm text-[#6B7280]">Re-execute saved test actions</p>
+          <p className="text-sm text-gray-400">Re-execute saved test actions</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* File Upload */}
         <div>
-          <label className="block text-sm font-semibold text-[#111827] mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Replay Actions File (JSON)
           </label>
           <div className="flex items-center gap-2">
-            <label className="flex-1 flex items-center justify-center px-4 py-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 hover:bg-purple-50/30 transition-all">
-              <Upload className="w-5 h-5 text-purple-600 mr-2" />
-              <span className="text-sm text-[#111827] font-medium">
+            <label className="flex-1 flex items-center justify-center px-4 py-4 border-2 border-dashed border-gray-700 rounded-lg cursor-pointer hover:border-purple-500 hover:bg-purple-500/10 transition-all">
+              <Upload className="w-5 h-5 text-purple-400 mr-2" />
+              <span className="text-sm text-gray-300 font-medium">
                 {file ? file.name : 'Click to upload JSON file'}
               </span>
               <input
@@ -80,7 +80,7 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
               />
             </label>
           </div>
-          <p className="text-xs text-[#6B7280] mt-2">
+          <p className="text-xs text-gray-400 mt-2">
             Upload the replay_actions.json file from a previous test execution
           </p>
         </div>
@@ -92,10 +92,10 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
               type="checkbox"
               checked={showCredentials}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setShowCredentials(e.target.checked)}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
+              className="rounded border-gray-700 text-purple-500 focus:ring-purple-500 w-4 h-4 bg-[#0A0E14]"
               disabled={loading}
             />
-            <span className="text-sm font-medium text-[#111827] group-hover:text-purple-600 transition-colors">
+            <span className="text-sm font-medium text-gray-300 group-hover:text-purple-400 transition-colors">
               Include login credentials (optional)
             </span>
           </label>
@@ -103,9 +103,9 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
 
         {/* Credentials Fields */}
         {showCredentials && (
-          <div className="space-y-4 pl-6 border-l-2 border-purple-500 bg-purple-50/30 py-4 pr-4 rounded-r-lg">
+          <div className="space-y-4 pl-6 border-l-2 border-purple-500 bg-purple-500/10 py-4 pr-4 rounded-r-lg">
             <div>
-              <label className="block text-sm font-semibold text-[#111827] mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
               <input
@@ -113,13 +113,13 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
                 value={userEmail}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-[#111827] mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -127,7 +127,7 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
                 value={userPassword}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setUserPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                 disabled={loading}
               />
             </div>
@@ -144,7 +144,7 @@ export default function ReplayUploader({ onReplay, loading }: ReplayUploaderProp
         <button
           type="submit"
           disabled={loading || !file}
-          className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+          className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
         >
           <Play className="w-5 h-5" />
           {loading ? 'Starting Replay...' : 'Execute Replay'}

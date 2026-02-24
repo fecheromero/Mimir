@@ -162,21 +162,22 @@ export default function JobResults(): JSX.Element {
   }
 
   return (
-    <div className="p-8">
-      {/* Header with Back Button */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-[#6B7280] hover:text-[#111827] transition-colors mb-4"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Back to Dashboard</span>
-        </button>
-        <h1 className="text-3xl font-bold text-[#111827]">Job Results</h1>
-      </div>
+    <div className="min-h-screen bg-[#0A0E14] p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header with Back Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Back to Dashboard</span>
+          </button>
+          <h1 className="text-3xl font-bold text-white">Job Results</h1>
+        </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl space-y-6">
+        {/* Main Content */}
+        <div className="space-y-6">
         {/* Job Status */}
         {status && (
           <JobStatus
@@ -200,6 +201,7 @@ export default function JobResults(): JSX.Element {
         {results && jobId && (
           <ResultsViewer results={results} jobId={jobId} />
         )}
+        </div>
       </div>
     </div>
   )

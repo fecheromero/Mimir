@@ -105,29 +105,31 @@ export default function Dashboard(): JSX.Element {
   }
 
   return (
-    <div className="p-8">
-      {/* Header Section */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#111827] mb-2">
-          QA Assistant
-        </h1>
-        <p className="text-[#6B7280]">
-          AI-powered test case generation and automated browser testing
-        </p>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl">
-        {/* Generate new test cases */}
-        <div className="lg:col-span-2">
-          <TestCaseGenerator onGenerate={handleGenerate} loading={loading} />
+    <div className="min-h-screen bg-[#0A0E14] p-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            QA Assistant
+          </h1>
+          <p className="text-gray-400">
+            AI-powered test case generation and automated browser testing
+          </p>
         </div>
 
-        {/* Upload existing test cases */}
-        <TestCaseUploader onUpload={handleUpload} loading={loading} />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Generate new test cases */}
+          <div className="lg:col-span-2">
+            <TestCaseGenerator onGenerate={handleGenerate} loading={loading} />
+          </div>
 
-        {/* Execute replay actions */}
-        <ReplayUploader onReplay={handleReplay} loading={loading} />
+          {/* Upload existing test cases */}
+          <TestCaseUploader onUpload={handleUpload} loading={loading} />
+
+          {/* Execute replay actions */}
+          <ReplayUploader onReplay={handleReplay} loading={loading} />
+        </div>
       </div>
     </div>
   )

@@ -51,28 +51,28 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-6 hover:border-gray-700 transition-colors">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-blue-50 rounded-lg">
-          <FileText className="w-6 h-6 text-[#3B82F6]" />
+        <div className="p-2 bg-blue-500/20 rounded-lg">
+          <FileText className="w-6 h-6 text-blue-400" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-[#111827]">Generate Test Cases</h2>
-          <p className="text-sm text-[#6B7280]">Create test cases from ticket descriptions</p>
+          <h2 className="text-xl font-semibold text-white">Generate Test Cases</h2>
+          <p className="text-sm text-gray-400">Create test cases from ticket descriptions</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-semibold text-[#111827]">
+            <label className="block text-sm font-medium text-gray-300">
               Ticket Description (Markdown supported)
             </label>
             {description && (
               <button
                 type="button"
                 onClick={handleClearDescription}
-                className="text-xs text-[#6B7280] hover:text-red-600 flex items-center gap-1 transition-colors"
+                className="text-xs text-gray-400 hover:text-red-400 flex items-center gap-1 transition-colors"
               >
                 <X className="w-3 h-3" />
                 Clear
@@ -82,28 +82,28 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
           <textarea
             value={description}
             onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent font-mono text-sm transition-all"
+            className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm transition-all"
             rows={10}
             placeholder="Paste ticket description from Notion..."
             required
           />
           {description && (
-            <p className="text-xs text-[#10B981] mt-2 flex items-center gap-1">
-              <span className="w-1 h-1 bg-[#10B981] rounded-full"></span>
+            <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
+              <span className="w-1 h-1 bg-green-400 rounded-full"></span>
               Saved locally - will be restored if you refresh the page
             </p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-[#111827] mb-2">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
             Test URL
           </label>
           <input
             type="url"
             value={url}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
+            className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="https://example.com"
             required
           />
@@ -116,10 +116,10 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
               type="checkbox"
               checked={showCredentials}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setShowCredentials(e.target.checked)}
-              className="rounded border-gray-300 text-[#3B82F6] focus:ring-[#3B82F6] w-4 h-4"
+              className="rounded border-gray-700 text-blue-500 focus:ring-blue-500 w-4 h-4 bg-[#0A0E14]"
               disabled={loading}
             />
-            <span className="text-sm font-medium text-[#111827] group-hover:text-[#3B82F6] transition-colors">
+            <span className="text-sm font-medium text-gray-300 group-hover:text-blue-400 transition-colors">
               Include login credentials (optional)
             </span>
           </label>
@@ -127,9 +127,9 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
 
         {/* Credentials Fields */}
         {showCredentials && (
-          <div className="space-y-4 pl-6 border-l-2 border-[#3B82F6] bg-blue-50/30 py-4 pr-4 rounded-r-lg">
+          <div className="space-y-4 pl-6 border-l-2 border-blue-500 bg-blue-500/10 py-4 pr-4 rounded-r-lg">
             <div>
-              <label className="block text-sm font-semibold text-[#111827] mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Email
               </label>
               <input
@@ -137,13 +137,13 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
                 value={userEmail}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setUserEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
+                className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 disabled={loading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-[#111827] mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -151,7 +151,7 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
                 value={userPassword}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setUserPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent transition-all"
+                className="w-full px-4 py-2 bg-[#0A0E14] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 disabled={loading}
               />
             </div>
@@ -161,7 +161,7 @@ export default function TestCaseGenerator({ onGenerate, loading }: TestCaseGener
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#3B82F6] text-white py-3 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-all shadow-sm hover:shadow-md"
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
