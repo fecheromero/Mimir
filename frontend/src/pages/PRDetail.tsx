@@ -155,12 +155,14 @@ export default function PRDetail() {
                 <h1 className="text-3xl font-bold text-white">{pr.title}</h1>
                 <span
                   className={`px-3 py-1 text-sm rounded-full ${
-                    pr.isOpen
+                    pr.isMerged
+                      ? 'bg-purple-500/20 text-purple-400'
+                      : pr.isOpen
                       ? 'bg-green-500/20 text-green-400'
-                      : 'bg-purple-500/20 text-purple-400'
+                      : 'bg-red-500/20 text-red-400'
                   }`}
                 >
-                  {pr.state}
+                  {pr.isMerged ? 'merged' : pr.state}
                 </span>
               </div>
 
@@ -218,6 +220,30 @@ export default function PRDetail() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
             <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Merged PR Banner */}
+        {pr.isMerged && (
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-6 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-purple-400 mb-2">Pull Request Merged - Read Only</h3>
+                <p className="text-gray-300 text-sm mb-3">
+                  This pull request has been merged and is now in read-only mode. You can still generate reviews to see what improvements could have been made, but dummy improvements cannot be applied.
+                </p>
+                {pr.mergedAt && (
+                  <p className="text-gray-400 text-xs">
+                    Merged on {new Date(pr.mergedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

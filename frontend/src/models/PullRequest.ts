@@ -17,7 +17,9 @@ export class PullRequest {
     public readonly deletions: number,
     public readonly changedFiles: number,
     public readonly createdAt: Date,
-    public readonly updatedAt: Date
+    public readonly updatedAt: Date,
+    public readonly merged: boolean = false,
+    public readonly mergedAt: Date | null = null
   ) {}
 
   static fromJson(data: any): PullRequest {
@@ -33,6 +35,21 @@ export class PullRequest {
 
       if (!createdAt || !updatedAt) {
         throw new Error('Missing required date fields: created_at or updated_at')
+      }
+
+      const mergedAt = data.merged_at || data.mergedAt
+
+      // Parse merged status carefully - Redis returns strings "True"/"False"
+      let merged = false
+      if (data.merged !== undefined && data.merged !== null) {
+        if (typeof data.merged === 'boolean') {
+          merged = data.merged
+        } else if (typeof data.merged === 'string') {
+          // Handle string values from Redis
+          merged = data.merged.toLowerCase() === 'true'
+        } else {
+          merged = Boolean(data.merged)
+        }
       }
 
       return new PullRequest(
@@ -51,7 +68,9 @@ export class PullRequest {
         Number(data.deletions || 0),
         Number(data.changed_files || data.changedFiles || 0),
         new Date(createdAt),
-        new Date(updatedAt)
+        new Date(updatedAt),
+        merged,
+        mergedAt ? new Date(mergedAt) : null
       )
     } catch (error) {
       console.error(MODEL_PARSE_ERRORS.PULL_REQUEST, error)
@@ -76,20 +95,22 @@ export class PullRequest {
       deletions: this.deletions,
       changed_files: this.changedFiles,
       created_at: this.createdAt.toISOString(),
-      updated_at: this.updatedAt.toISOString()
+      updated_at: this.updatedAt.toISOString(),
+      merged: this.merged,
+      merged_at: this.mergedAt?.toISOString() || null
     }
   }
 
   get isOpen(): boolean {
-    return this.state === 'open'
+    return this.state === 'open' && !this.merged
   }
 
   get isClosed(): boolean {
-    return this.state === 'closed'
+    return this.state === 'closed' && !this.merged
   }
 
   get isMerged(): boolean {
-    return this.state === 'merged'
+    return this.state === 'merged' || this.merged
   }
 
   get changesSummary(): string {

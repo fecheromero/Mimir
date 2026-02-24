@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink, X} from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
 import PromptBuilder from './PromptBuilder'
@@ -129,11 +129,23 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
     reset()
   }
 
-  // Close modal and clear selection on success
-  if (result?.success && showApplyModal) {
-    setShowApplyModal(false)
-    setSelectedImprovements([])
-  }
+  // Close modal on success only (errors stay in modal for user to read)
+  useEffect(() => {
+    if (result?.success && showApplyModal) {
+      setShowApplyModal(false)
+      setSelectedImprovements([])
+    }
+  }, [result?.success, showApplyModal])
+
+  // Auto-dismiss success toast after 5 seconds
+  useEffect(() => {
+    if (result?.success && !showApplyModal) {
+      const timer = setTimeout(() => {
+        reset()
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [result?.success, showApplyModal, reset])
 
   const dummyCount = reviewData.dummy_improvements?.length || 0
   const mediumCount = reviewData.medium_improvements?.length || 0
@@ -204,7 +216,20 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
 
                 {selectedImprovements.length > 0 && (
                   <>
-                    {reviewStatus?.isOutdated && (
+                    {pr?.isMerged && (
+                      <div className="mt-4 flex items-start gap-2 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                        <svg className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-purple-400 text-sm font-medium">PR Merged - Read Only</p>
+                          <p className="text-purple-300/80 text-xs mt-1">
+                            This PR has been merged. Improvements cannot be applied to merged PRs.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {reviewStatus?.isOutdated && !pr?.isMerged && (
                       <div className="mt-4 flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                         <svg className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -217,20 +242,22 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
                         </div>
                       </div>
                     )}
-                    <div className="mt-4 flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                      <span className="text-green-400 text-sm">
-                        {selectedImprovements.length} improvement(s) selected
-                      </span>
-                      <button
-                        onClick={handleApplyClick}
-                        disabled={applying || reviewStatus?.isOutdated}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={reviewStatus?.isOutdated ? 'Cannot apply improvements - review is outdated' : ''}
-                      >
-                        <CheckSquare className="w-4 h-4" />
-                        {applying ? 'Applying...' : reviewStatus?.isOutdated ? 'Review Outdated' : 'Apply Selected'}
-                      </button>
-                    </div>
+                    {!pr?.isMerged && (
+                      <div className="mt-4 flex items-center justify-between p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <span className="text-green-400 text-sm">
+                          {selectedImprovements.length} improvement(s) selected
+                        </span>
+                        <button
+                          onClick={handleApplyClick}
+                          disabled={applying || reviewStatus?.isOutdated}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={reviewStatus?.isOutdated ? 'Cannot apply improvements - review is outdated' : ''}
+                        >
+                          <CheckSquare className="w-4 h-4" />
+                          {applying ? 'Applying...' : reviewStatus?.isOutdated ? 'Review Outdated' : 'Apply Selected'}
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </>
@@ -394,6 +421,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
           onConfirm={handleApplyConfirm}
           onCancel={handleApplyCancel}
           applying={applying}
+          error={error}
         />
       )}
 
@@ -401,7 +429,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
       {result?.success && !showApplyModal && (
         <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-slide-up">
           <CheckSquare className="w-5 h-5" />
-          <div>
+          <div className="flex-1">
             <p className="font-semibold">Successfully applied {result.improvements_applied} improvements!</p>
             {result.commit_url && (
               <a
@@ -414,6 +442,13 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
               </a>
             )}
           </div>
+          <button
+            onClick={reset}
+            className="ml-4 p-1 hover:bg-green-700 rounded transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 

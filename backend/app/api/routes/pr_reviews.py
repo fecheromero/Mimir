@@ -2,12 +2,15 @@
 API routes for PR reviews.
 """
 import uuid
+import json
+import redis
+import logging
+import shutil
 from datetime import datetime
 from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-import redis
-import json
 
 from app.core.config import get_settings
 from app.services.github_service import GitHubService
@@ -16,11 +19,14 @@ from app.services.github_commit_service import (
     Improvement as GitHubImprovement,
     CommitResult
 )
+from app.services.pr_review_agent import PRReviewAgent
+from app.services.storage_service import StorageService
 from app.workers.tasks import review_pr_task
 
 settings = get_settings()
 redis_client = redis.from_url(settings.redis_url)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class WatchPRRequest(BaseModel):
@@ -80,10 +86,6 @@ async def execute_sync_review(pr_id: str) -> dict:
     Execute PR review synchronously without Celery.
     Returns review results immediately.
     """
-    from app.services.github_service import GitHubService
-    from app.services.pr_review_agent import PRReviewAgent
-    from app.services.storage_service import StorageService
-
     try:
         # Generate review ID
         review_id = str(uuid.uuid4())
@@ -155,6 +157,7 @@ async def execute_sync_review(pr_id: str) -> dict:
             "review_id": review_id,
             "pr_id": pr_id,
             "pr_url": pr_info["url"],
+            "pr_head_sha": pr_info.get("head_sha", ""),  # Track commit SHA for outdated detection
             "created_at": datetime.utcnow().isoformat(),
             "review_text": review_text,  # Markdown (backward compat)
             "review_data": structured_review,  # Structured JSON
@@ -238,7 +241,6 @@ async def get_reviewer_rules():
         Current rules content
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
 
         with open(PRReviewAgent.RULES_FILE_PATH, 'r', encoding='utf-8') as f:
             rules_content = f.read()
@@ -266,8 +268,6 @@ async def approve_rule_suggestion(request: ApproveSuggestionRequest):
         Success message with updated rules
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
-        from app.services.storage_service import StorageService
 
         # Load the review to get the suggestion
         storage = StorageService()
@@ -357,7 +357,6 @@ async def update_reviewer_rules(request: UpdateRulesRequest):
         Success message
     """
     try:
-        from app.services.pr_review_agent import PRReviewAgent
 
         # Validate content is not empty
         if not request.rules_content.strip():
@@ -442,6 +441,8 @@ async def get_watched_prs():
     """
     Get list of all watched PRs.
 
+    Fetches fresh PR data from GitHub to ensure merged status is current.
+
     Returns:
         List of PR information
     """
@@ -450,10 +451,12 @@ async def get_watched_prs():
         pr_ids = redis_client.smembers("watched_prs")
 
         prs = []
+        github_service = GitHubService()
+
         for pr_id_bytes in pr_ids:
             pr_id = pr_id_bytes.decode()
 
-            # Get PR data
+            # Get cached PR data
             pr_data = redis_client.hgetall(f"pr:{pr_id}")
             if not pr_data:
                 # Clean up orphaned PR from watched list
@@ -462,6 +465,32 @@ async def get_watched_prs():
 
             # Convert to dict
             pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
+
+            # Fetch fresh PR info from GitHub to get ALL current data
+            try:
+                parts = pr_id.split('/')
+                if len(parts) == 3:
+                    owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+                    fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+                    # Keep watching_since from cached data
+                    watching_since = pr_info.get("watching_since", "")
+
+                    # Replace with ALL fresh data, preserving watching_since
+                    pr_info = fresh_pr_info
+                    pr_info["watching_since"] = watching_since
+
+                    # Convert values to strings for Redis
+                    pr_data_for_redis = {
+                        k: str(v) if v is not None else ""
+                        for k, v in pr_info.items()
+                    }
+
+                    # Update Redis cache with ALL fresh data
+                    redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
+            except Exception as e:
+                # If GitHub fetch fails, use cached data
+                logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
             # Get review count
             review_count = redis_client.llen(f"pr:{pr_id}:reviews")
@@ -495,8 +524,6 @@ async def get_review(pr_id: str, review_id: str):
         Full review data including review text
     """
     try:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.info(f"=== GET REVIEW DEBUG ===")
         logger.info(f"Raw pr_id received: {repr(pr_id)}")
         logger.info(f"Raw review_id received: {repr(review_id)}")
@@ -504,7 +531,6 @@ async def get_review(pr_id: str, review_id: str):
         logger.info(f"pr_id length: {len(pr_id)}")
 
         # Get review from storage (don't verify PR in Redis - it might have been unwatched)
-        from app.services.storage_service import StorageService
         storage = StorageService()
 
         # Build expected path
@@ -538,8 +564,6 @@ async def get_review(pr_id: str, review_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Error fetching review: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error fetching review: {str(e)}")
 
@@ -562,7 +586,6 @@ async def get_review_status(pr_id: str, review_id: str):
             raise HTTPException(status_code=404, detail="PR not found")
 
         # Load review data
-        from app.services.storage_service import StorageService
         storage = StorageService()
 
         review_data = storage.load_pr_review(pr_id, review_id)
@@ -570,7 +593,6 @@ async def get_review_status(pr_id: str, review_id: str):
             raise HTTPException(status_code=404, detail="Review not found")
 
         # Get current PR info
-        from app.services.github_service import GitHubService
         github_service = GitHubService(settings.github_token)
 
         parts = pr_id.split('/')
@@ -590,10 +612,6 @@ async def get_review_status(pr_id: str, review_id: str):
         structured_review = review_data.get("review_data")
 
         if structured_review and settings.github_token:
-            from app.services.github_commit_service import (
-                GitHubCommitService,
-                Improvement as GitHubImprovement
-            )
             commit_service = GitHubCommitService(settings.github_token)
 
             dummy_improvements = structured_review.get("dummy_improvements", [])
@@ -698,10 +716,6 @@ async def delete_review(pr_id: str, review_id: str):
         Success message
     """
     try:
-        import logging
-        import shutil
-        logger = logging.getLogger(__name__)
-
         # Delete from Redis
         redis_client.delete(f"pr_review:{review_id}")
 
@@ -709,7 +723,6 @@ async def delete_review(pr_id: str, review_id: str):
         redis_client.lrem(f"pr:{pr_id}:reviews", 0, review_id)
 
         # Delete review files from storage
-        from app.services.storage_service import StorageService
         storage = StorageService()
         review_dir = storage.base_path / "pr_reviews" / pr_id / review_id
 
@@ -723,8 +736,6 @@ async def delete_review(pr_id: str, review_id: str):
         }
 
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Error deleting review: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error deleting review: {str(e)}")
 
@@ -737,6 +748,8 @@ async def delete_review(pr_id: str, review_id: str):
 async def get_pr_details(pr_id: str):
     """
     Get detailed information about a specific PR including review history.
+
+    Fetches fresh PR data from GitHub to ensure merged status is current.
 
     Args:
         pr_id: PR identifier (owner/repo/number)
@@ -751,6 +764,33 @@ async def get_pr_details(pr_id: str):
             raise HTTPException(status_code=404, detail="PR not found")
 
         pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
+
+        # Fetch fresh PR info from GitHub to get current state and all latest data
+        try:
+            github_service = GitHubService()
+            parts = pr_id.split('/')
+            if len(parts) == 3:
+                owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+                fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+                # Update ALL fields from fresh GitHub data (keep watching_since from cache)
+                watching_since = pr_info.get("watching_since", "")
+
+                # Replace pr_info with fresh data, preserving watching_since
+                pr_info = fresh_pr_info
+                pr_info["watching_since"] = watching_since
+
+                # Convert values to strings for Redis (Redis doesn't accept None)
+                pr_data_for_redis = {
+                    k: str(v) if v is not None else ""
+                    for k, v in pr_info.items()
+                }
+
+                # Update Redis cache with ALL fresh data
+                redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
+        except Exception as e:
+            # If GitHub fetch fails, use cached data
+            logger.warning(f"Failed to fetch fresh PR info for {pr_id}: {str(e)}")
 
         # Get review history
         review_ids = redis_client.lrange(f"pr:{pr_id}:reviews", 0, -1)
@@ -796,31 +836,40 @@ async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
         if not redis_client.exists(f"pr:{pr_id}"):
             raise HTTPException(status_code=404, detail="PR not found")
 
+        # Get current PR info to check if it's merged
+        github_service = GitHubService(settings.github_token)
+        parts = pr_id.split('/')
+
+        if len(parts) != 3:
+            raise HTTPException(status_code=400, detail="Invalid PR ID format")
+
+        owner, repo, pr_number = parts[0], parts[1], int(parts[2])
+        current_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+
+        # Block if PR is merged
+        if current_pr_info.get("state") == "merged" or current_pr_info.get("merged"):
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot apply improvements - PR is already merged. This PR is read-only."
+            )
+
         # Check if review is outdated (if review_id provided)
         if request.review_id:
-            from app.services.storage_service import StorageService
-            from app.services.github_service import GitHubService
 
             storage = StorageService()
             review_data = storage.load_pr_review(pr_id, request.review_id)
 
             if review_data:
-                # Get current PR info
-                github_service = GitHubService(settings.github_token)
-                parts = pr_id.split('/')
-                if len(parts) == 3:
-                    owner, repo, pr_number = parts[0], parts[1], int(parts[2])
-                    current_pr_info = github_service.get_pr_info(owner, repo, pr_number)
+                # Check if review is outdated (only if review has pr_head_sha tracked)
+                review_head_sha = review_data.get("pr_head_sha", "")
+                current_head_sha = current_pr_info.get("head_sha", "")
 
-                    # Check if review is outdated
-                    review_head_sha = review_data.get("pr_head_sha", "")
-                    current_head_sha = current_pr_info.get("head_sha", "")
-
-                    if review_head_sha and review_head_sha != current_head_sha:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Cannot apply improvements - review is outdated. Review was generated at commit {review_head_sha[:7]}, but PR is now at {current_head_sha[:7]}. Please generate a new review."
-                        )
+                # Only check if review_head_sha exists (old reviews might not have it)
+                if review_head_sha and current_head_sha and review_head_sha != current_head_sha:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Cannot apply improvements - review is outdated. Review was generated at commit {review_head_sha[:7]}, but PR is now at {current_head_sha[:7]}. Please generate a new review."
+                    )
 
         # Validate GitHub token
         if not settings.github_token:
