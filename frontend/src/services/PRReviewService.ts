@@ -11,6 +11,7 @@ export interface ApplyImprovementsRequest {
     confidence: number
   }[]
   commitMessage?: string
+  reviewId?: string
 }
 
 export interface ApplyImprovementsResult {
@@ -87,7 +88,8 @@ export class PRReviewService {
   async applyImprovements(
     prId: string,
     improvements: Improvement[],
-    commitMessage?: string
+    commitMessage?: string,
+    reviewId?: string
   ): Promise<ApplyImprovementsResult> {
     const request: ApplyImprovementsRequest = {
       improvementIds: improvements.map(imp => imp.id),
@@ -98,7 +100,8 @@ export class PRReviewService {
         title: imp.title,
         confidence: imp.confidence
       })),
-      commitMessage
+      commitMessage,
+      reviewId
     }
 
     const response = await this.api.post(

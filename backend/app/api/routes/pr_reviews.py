@@ -155,6 +155,7 @@ async def execute_sync_review(pr_id: str) -> dict:
             "review_id": review_id,
             "pr_id": pr_id,
             "pr_url": pr_info["url"],
+            "pr_head_sha": pr_info.get("head_sha", ""),  # Track commit SHA for outdated detection
             "created_at": datetime.utcnow().isoformat(),
             "review_text": review_text,  # Markdown (backward compat)
             "review_data": structured_review,  # Structured JSON
@@ -885,11 +886,12 @@ async def apply_improvements(pr_id: str, request: ApplyImprovementsRequest):
             review_data = storage.load_pr_review(pr_id, request.review_id)
 
             if review_data:
-                # Check if review is outdated
+                # Check if review is outdated (only if review has pr_head_sha tracked)
                 review_head_sha = review_data.get("pr_head_sha", "")
                 current_head_sha = current_pr_info.get("head_sha", "")
 
-                if review_head_sha and review_head_sha != current_head_sha:
+                # Only check if review_head_sha exists (old reviews might not have it)
+                if review_head_sha and current_head_sha and review_head_sha != current_head_sha:
                     raise HTTPException(
                         status_code=400,
                         detail=f"Cannot apply improvements - review is outdated. Review was generated at commit {review_head_sha[:7]}, but PR is now at {current_head_sha[:7]}. Please generate a new review."

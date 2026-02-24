@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink, X} from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
 import PromptBuilder from './PromptBuilder'
@@ -129,11 +129,23 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
     reset()
   }
 
-  // Close modal and clear selection on success
-  if (result?.success && showApplyModal) {
-    setShowApplyModal(false)
-    setSelectedImprovements([])
-  }
+  // Close modal on success only (errors stay in modal for user to read)
+  useEffect(() => {
+    if (result?.success && showApplyModal) {
+      setShowApplyModal(false)
+      setSelectedImprovements([])
+    }
+  }, [result?.success, showApplyModal])
+
+  // Auto-dismiss success toast after 5 seconds
+  useEffect(() => {
+    if (result?.success && !showApplyModal) {
+      const timer = setTimeout(() => {
+        reset()
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [result?.success, showApplyModal, reset])
 
   const dummyCount = reviewData.dummy_improvements?.length || 0
   const mediumCount = reviewData.medium_improvements?.length || 0
@@ -409,6 +421,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
           onConfirm={handleApplyConfirm}
           onCancel={handleApplyCancel}
           applying={applying}
+          error={error}
         />
       )}
 
@@ -416,7 +429,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
       {result?.success && !showApplyModal && (
         <div className="fixed bottom-6 right-6 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-slide-up">
           <CheckSquare className="w-5 h-5" />
-          <div>
+          <div className="flex-1">
             <p className="font-semibold">Successfully applied {result.improvements_applied} improvements!</p>
             {result.commit_url && (
               <a
@@ -429,6 +442,13 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
               </a>
             )}
           </div>
+          <button
+            onClick={reset}
+            className="ml-4 p-1 hover:bg-green-700 rounded transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
