@@ -21,16 +21,16 @@ export default function JobStatus({ status, progress, currentStep }: JobStatusPr
   const getStatusColor = (): string => {
     switch (status) {
       case 'completed':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-500/20 text-green-400'
       case 'failed':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-500/20 text-red-400'
       default:
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-500/20 text-blue-400'
     }
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           {getStatusIcon()}
@@ -40,19 +40,19 @@ export default function JobStatus({ status, progress, currentStep }: JobStatusPr
             </span>
           </div>
         </div>
-        <span className="text-3xl font-bold text-[#111827]">{progress}%</span>
+        <span className="text-3xl font-bold text-white">{progress}%</span>
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+      <div className="w-full bg-gray-800 rounded-full h-3 mb-4 overflow-hidden">
         <div
-          className="bg-gradient-to-r from-[#3B82F6] to-blue-500 h-3 rounded-full transition-all duration-500 ease-out shadow-sm"
+          className="bg-gradient-to-r from-blue-600 to-blue-500 h-3 rounded-full transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* Current Step */}
-      <p className="text-sm text-[#6B7280] leading-relaxed">{currentStep}</p>
+      <p className="text-sm text-gray-400 leading-relaxed">{currentStep}</p>
     </div>
   )
 }

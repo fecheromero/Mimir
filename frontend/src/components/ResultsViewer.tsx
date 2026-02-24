@@ -84,23 +84,23 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-[#111827]">Test Results</h2>
+        <h2 className="text-2xl font-semibold text-white">Test Results</h2>
         <div className="flex gap-2 flex-wrap justify-end">
           {results.replay_actions && results.replay_actions.length > 0 && (
             <>
               <button
                 onClick={executeReplay}
                 disabled={executing}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 <Play className="w-4 h-4" />
                 <span className="font-medium">{executing ? 'Replaying...' : 'Execute Replay'}</span>
               </button>
               <button
                 onClick={downloadReplayActions}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 <FileJson className="w-4 h-4" />
                 <span className="font-medium">Replay Actions</span>
@@ -110,7 +110,7 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
           <a
             href={downloadUrl('results')}
             download
-            className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <FileJson className="w-4 h-4" />
             <span className="font-medium">Results JSON</span>
@@ -118,7 +118,7 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
           <a
             href={downloadUrl('report')}
             download
-            className="flex items-center gap-2 px-4 py-2 bg-[#10B981] text-white rounded-lg hover:bg-green-700 transition-all shadow-sm hover:shadow-md"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <FileText className="w-4 h-4" />
             <span className="font-medium">Report MD</span>
@@ -127,30 +127,50 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
       </div>
 
       {/* Test Report */}
-      <div className="border border-gray-200 rounded-lg p-6 bg-gradient-to-br from-gray-50 to-white mb-6">
-        <h3 className="text-lg font-semibold text-[#111827] mb-4">Test Report</h3>
-        <div className="prose max-w-none">
-          <ReactMarkdown>{results.final_result}</ReactMarkdown>
+      <div className="border border-gray-700 rounded-lg p-6 bg-[#0A0E14] mb-6">
+        <h3 className="text-lg font-semibold text-white mb-4">Test Report</h3>
+        <div className="markdown-content text-gray-300 leading-relaxed">
+          <ReactMarkdown
+            components={{
+              h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-white mb-4 mt-6 first:mt-0" {...props} />,
+              h2: ({node, ...props}) => <h2 className="text-xl font-bold text-white mb-3 mt-5 first:mt-0" {...props} />,
+              h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-white mb-2 mt-4 first:mt-0" {...props} />,
+              p: ({node, ...props}) => <p className="mb-4 text-gray-300" {...props} />,
+              ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 space-y-2 text-gray-300" {...props} />,
+              ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 space-y-2 text-gray-300" {...props} />,
+              li: ({node, ...props}) => <li className="text-gray-300" {...props} />,
+              code: ({node, inline, ...props}: any) =>
+                inline
+                  ? <code className="bg-gray-800 text-blue-400 px-1.5 py-0.5 rounded text-sm" {...props} />
+                  : <code className="block bg-gray-800 text-gray-300 p-4 rounded-lg overflow-x-auto text-sm" {...props} />,
+              pre: ({node, ...props}) => <pre className="mb-4" {...props} />,
+              strong: ({node, ...props}) => <strong className="font-semibold text-white" {...props} />,
+              em: ({node, ...props}) => <em className="italic text-gray-300" {...props} />,
+              a: ({node, ...props}) => <a className="text-blue-400 hover:text-blue-300 underline" {...props} />,
+            }}
+          >
+            {results.final_result}
+          </ReactMarkdown>
         </div>
       </div>
 
       {/* Actions Summary */}
-      <div className="border border-gray-200 rounded-lg p-6 bg-gradient-to-br from-blue-50/30 to-white">
-        <h3 className="text-lg font-semibold text-[#111827] mb-4">Actions Performed</h3>
-        <div className="text-sm text-[#111827]">
+      <div className="border border-gray-700 rounded-lg p-6 bg-[#0A0E14]">
+        <h3 className="text-lg font-semibold text-white mb-4">Actions Performed</h3>
+        <div className="text-sm text-gray-300">
           <p className="mb-3 font-medium">Total actions: {results.actions?.length || 0}</p>
           <details className="cursor-pointer group">
-            <summary className="font-medium text-[#3B82F6] hover:text-blue-700 transition-colors">
+            <summary className="font-medium text-blue-400 hover:text-blue-300 transition-colors">
               View detailed actions
             </summary>
-            <pre className="mt-3 p-4 bg-white rounded-lg border border-gray-200 overflow-x-auto text-xs shadow-inner">
+            <pre className="mt-3 p-4 bg-[#0F1419] rounded-lg border border-gray-700 overflow-x-auto text-xs">
               {JSON.stringify(results.actions, null, 2)}
             </pre>
           </details>
         </div>
       </div>
 
-      <div className="mt-6 pt-6 border-t border-gray-200 text-sm text-[#6B7280] space-y-1">
+      <div className="mt-6 pt-6 border-t border-gray-800 text-sm text-gray-400 space-y-1">
         <p>Executed: {new Date(results.executed_at).toLocaleString()}</p>
         <p>URL: {results.url}</p>
       </div>
