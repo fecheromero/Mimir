@@ -1373,5 +1373,3 @@ function UserProfile({ user }: { user: User }) {
 19. **Mock Factories** - reusable mock abstractions, not inline mocks
 20. **Wait for State** - always use `waitFor()` for async state updates
 21. **Test Behavior** - verify final state and outcomes, not implementation details
- SKILL-coding-philosophy.md
- SKILL-coding-philosophy.md
