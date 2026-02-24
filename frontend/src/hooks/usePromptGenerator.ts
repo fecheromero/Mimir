@@ -69,7 +69,7 @@ ${pr.body ? `\n**Description**:\n${pr.body}\n` : ''}
 **Category**: ${categoryLabel}
 **Type**: ${improvement.type || 'Code improvement'}
 ${improvement.impact ? `**Impact**: ${improvement.impact}` : ''}
-${improvement.risk ? `**Risk**: ${improvement.risk || riskLevel}` : ''}
+**Risk**: ${improvement.risk || riskLevel}
 ${improvement.effort ? `**Effort**: ${improvement.effort}` : ''}
 
 ### ${improvement.title}

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:code.claude.com)",
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(./create-portable-app.sh:*)",
+      "Bash(tree src/models src/services -L 2)",
+      "Bash(npm run build)",
+      "Bash(npm install --save-dev typescript @types/node eslint-plugin-no-js)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(tree -L 2 frontend/src/components frontend/src/pages frontend/src/services)",
+      "Bash(npm install --save-dev vitest @vitest/ui @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom)",
+      "Bash(npm run test:run)",
+      "Bash(export NODE_OPTIONS=\"--no-warnings\")",
+      "Bash(npm install --save-dev 'jsdom@^24')",
+      "Bash(npm run test:run -- src/utils/__tests__/retry.test.ts)",
+      "Read(//Users/feche/.claude/skills/explain-code/**)",
+      "Read(//Users/feche/.claude/**)",
+      "Read(//Users/feche/.agents/skills/**)",
+      "Read(//Users/feche/**)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Funk.aiff"
+          }
+        ]
+      }
+    ]
+  }
+}
