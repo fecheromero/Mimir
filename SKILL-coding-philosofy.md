@@ -1374,3 +1374,4 @@ function UserProfile({ user }: { user: User }) {
 20. **Wait for State** - always use `waitFor()` for async state updates
 21. **Test Behavior** - verify final state and outcomes, not implementation details
  SKILL-coding-philosophy.md
+ SKILL-coding-philosophy.md
