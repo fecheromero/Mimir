@@ -467,31 +467,28 @@ async def get_watched_prs():
             # Convert to dict
             pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
 
-            # Fetch fresh PR info from GitHub to get current state (merged, open, closed)
+            # Fetch fresh PR info from GitHub to get ALL current data
             try:
                 parts = pr_id.split('/')
                 if len(parts) == 3:
                     owner, repo, pr_number = parts[0], parts[1], int(parts[2])
                     fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
 
-                    # Update state, merged status, and updated_at from fresh data
-                    pr_info["state"] = fresh_pr_info["state"]
-                    pr_info["merged"] = str(fresh_pr_info.get("merged", False))
-                    pr_info["merged_at"] = fresh_pr_info.get("merged_at") or ""
-                    pr_info["updated_at"] = fresh_pr_info["updated_at"]
-                    pr_info["head_sha"] = fresh_pr_info["head_sha"]
+                    # Keep watching_since from cached data
+                    watching_since = pr_info.get("watching_since", "")
 
-                    # Update Redis cache with fresh data
-                    redis_client.hset(
-                        f"pr:{pr_id}",
-                        mapping={
-                            "state": pr_info["state"],
-                            "merged": pr_info["merged"],
-                            "merged_at": pr_info["merged_at"],
-                            "updated_at": pr_info["updated_at"],
-                            "head_sha": pr_info["head_sha"]
-                        }
-                    )
+                    # Replace with ALL fresh data, preserving watching_since
+                    pr_info = fresh_pr_info
+                    pr_info["watching_since"] = watching_since
+
+                    # Convert values to strings for Redis
+                    pr_data_for_redis = {
+                        k: str(v) if v is not None else ""
+                        for k, v in pr_info.items()
+                    }
+
+                    # Update Redis cache with ALL fresh data
+                    redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
             except Exception as e:
                 # If GitHub fetch fails, use cached data
                 import logging
@@ -789,7 +786,7 @@ async def get_pr_details(pr_id: str):
 
         pr_info = {k.decode(): v.decode() for k, v in pr_data.items()}
 
-        # Fetch fresh PR info from GitHub to get current state (merged, open, closed)
+        # Fetch fresh PR info from GitHub to get current state and all latest data
         try:
             github_service = GitHubService()
             parts = pr_id.split('/')
@@ -797,24 +794,21 @@ async def get_pr_details(pr_id: str):
                 owner, repo, pr_number = parts[0], parts[1], int(parts[2])
                 fresh_pr_info = github_service.get_pr_info(owner, repo, pr_number)
 
-                # Update state, merged status from fresh data
-                pr_info["state"] = fresh_pr_info["state"]
-                pr_info["merged"] = str(fresh_pr_info.get("merged", False))
-                pr_info["merged_at"] = fresh_pr_info.get("merged_at") or ""
-                pr_info["updated_at"] = fresh_pr_info["updated_at"]
-                pr_info["head_sha"] = fresh_pr_info["head_sha"]
+                # Update ALL fields from fresh GitHub data (keep watching_since from cache)
+                watching_since = pr_info.get("watching_since", "")
 
-                # Update Redis cache
-                redis_client.hset(
-                    f"pr:{pr_id}",
-                    mapping={
-                        "state": pr_info["state"],
-                        "merged": pr_info["merged"],
-                        "merged_at": pr_info["merged_at"],
-                        "updated_at": pr_info["updated_at"],
-                        "head_sha": pr_info["head_sha"]
-                    }
-                )
+                # Replace pr_info with fresh data, preserving watching_since
+                pr_info = fresh_pr_info
+                pr_info["watching_since"] = watching_since
+
+                # Convert values to strings for Redis (Redis doesn't accept None)
+                pr_data_for_redis = {
+                    k: str(v) if v is not None else ""
+                    for k, v in pr_info.items()
+                }
+
+                # Update Redis cache with ALL fresh data
+                redis_client.hset(f"pr:{pr_id}", mapping=pr_data_for_redis)
         except Exception as e:
             # If GitHub fetch fails, use cached data
             import logging
