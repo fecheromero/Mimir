@@ -2,6 +2,7 @@ from playwright.async_api import async_playwright
 import ast
 from app.core.config import get_settings
 from app.core.llm_factory import get_llm_for_test_generation
+from app.models.job_status import JobStatus
 
 settings = get_settings()
 
@@ -225,17 +226,17 @@ class ReplayService:
 
                 # Priority: LLM evaluation > technical errors > default
                 if llm_says_fail or errors:
-                    status = "unsuccessful"
+                    status = JobStatus.UNSUCCESSFUL.value
                     if errors:
                         summary = f"Executed {len(executed_actions)} actions with {len(errors)} errors. LLM evaluation: {'FAIL' if llm_says_fail else 'N/A'}"
                     else:
                         summary = f"Executed {len(executed_actions)} actions but test unsuccessful based on LLM evaluation"
                 elif llm_says_pass:
-                    status = "passed"
+                    status = JobStatus.PASSED.value
                     summary = f"Successfully executed all {len(executed_actions)} actions. LLM evaluation: PASS"
                 else:
                     # Default: passed if no errors
-                    status = "passed" if not errors else "unsuccessful"
+                    status = JobStatus.PASSED.value if not errors else JobStatus.UNSUCCESSFUL.value
                     summary = f"Executed {len(executed_actions)} actions"
 
                 return {

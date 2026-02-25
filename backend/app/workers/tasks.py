@@ -9,6 +9,8 @@ from app.core.config import get_settings
 from app.services.test_case_agent import TestCaseAgent
 from app.services.qa_agent import QaAgent
 from app.services.storage_service import StorageService
+from app.services.status_evaluator import StatusEvaluator
+from app.models.job_status import JobStatus
 
 settings = get_settings()
 redis_client = redis.from_url(settings.redis_url)
@@ -39,7 +41,7 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
     logger.info(f"[Job {job_id}] Starting test case generation task")
 
     try:
-        update_job_status(job_id, "generating", 10, "Initializing test case generation")
+        update_job_status(job_id, JobStatus.GENERATING.value, 10, "Initializing test case generation")
         logger.info(f"[Job {job_id}] Status updated to generating")
 
         # Create agent and generate test cases
@@ -47,13 +49,13 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         agent = TestCaseAgent()
         logger.info(f"[Job {job_id}] TestCaseAgent created successfully")
 
-        update_job_status(job_id, "generating", 30, "Generating test cases with AI")
+        update_job_status(job_id, JobStatus.GENERATING.value, 30, "Generating test cases with AI")
         logger.info(f"[Job {job_id}] Calling LLM to generate test cases")
 
         test_case_text = agent.generate_test_case(ticket_id, description)
         logger.info(f"[Job {job_id}] Test cases generated successfully (length: {len(test_case_text)} chars)")
 
-        update_job_status(job_id, "generating", 70, "Formatting test cases")
+        update_job_status(job_id, JobStatus.GENERATING.value, 70, "Formatting test cases")
 
         # Structure the test cases
         test_cases = {
@@ -69,19 +71,19 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         storage.save_test_cases(job_id, test_cases)
         logger.info(f"[Job {job_id}] Test cases saved successfully")
 
-        update_job_status(job_id, "generated", 100, "Test cases generated successfully")
+        update_job_status(job_id, JobStatus.GENERATED.value, 100, "Test cases generated successfully")
         logger.info(f"[Job {job_id}] Task completed successfully")
 
         return {
             "job_id": job_id,
-            "status": "generated",
+            "status": JobStatus.GENERATED.value,
             "test_cases": test_cases
         }
 
     except Exception as e:
         error_msg = f"Error: {str(e)}"
         logger.error(f"[Job {job_id}] Task failed: {error_msg}", exc_info=True)
-        update_job_status(job_id, "failed", 0, error_msg)
+        update_job_status(job_id, JobStatus.FAILED.value, 0, error_msg)
         raise
 
 
@@ -178,7 +180,7 @@ def execute_test_cases_task(
         user_password: Optional user password for login
     """
     try:
-        update_job_status(job_id, "executing", 10, "Initializing browser automation")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 10, "Initializing browser automation")
 
         # Create QA agent
         agent = QaAgent(
@@ -189,7 +191,7 @@ def execute_test_cases_task(
             cdp_url=cdp_url
         )
 
-        update_job_status(job_id, "executing", 30, "Starting test execution")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 30, "Starting test execution")
 
         # Run tests with 10 minute timeout, capturing logs (local mode only)
         log_capture = LogCapture() if settings.browser_execution_mode == "local" else None
@@ -199,11 +201,11 @@ def execute_test_cases_task(
             result = asyncio.run(_run_with_timeout(agent, test_case_text, headless, log_capture))
         except asyncio.TimeoutError:
             timed_out = True
-            update_job_status(job_id, "executing", 80, "Test timed out, generating partial report")
+            update_job_status(job_id, JobStatus.EXECUTING.value, 80, "Test timed out, generating partial report")
 
         # If timeout occurred, try to get partial results (if available)
         if timed_out and result is None:
-            update_job_status(job_id, "failed", 100, "Test execution timed out after 10 minutes")
+            update_job_status(job_id, JobStatus.FAILED.value, 100, "Test execution timed out after 10 minutes")
 
             # Get captured logs (only available in local mode)
             captured_logs = log_capture.get_logs() if log_capture else "No logs available (cloud execution mode)"
@@ -259,7 +261,7 @@ Please verify:
                 "final_result": timeout_report,
                 "actions": [],
                 "errors": ["Test execution timed out after 10 minutes"],
-                "status": "failed"
+                "status": JobStatus.FAILED.value
             }
 
             storage = StorageService()
@@ -268,11 +270,11 @@ Please verify:
 
             return {
                 "job_id": job_id,
-                "status": "failed",
+                "status": JobStatus.FAILED.value,
                 "results": results
             }
 
-        update_job_status(job_id, "executing", 80, "Generating test report")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 80, "Generating test report")
 
         # Extract results
         final_result = result.final_result() if hasattr(result, 'final_result') else None
@@ -368,45 +370,15 @@ Please verify:
             except Exception:
                 errors.append(str(error))
 
-        # Check if the agent actually succeeded or hit limits
-        has_errors = len(errors) > 0
-        has_few_actions = len(actions) < 2
+        # Check if hit step limit
         hit_step_limit = len(actions) >= 30  # Hit the max_steps limit
 
-        # Check the agent's own success determination from the 'done' action
-        agent_success = None
-        for action in actions:
-            # Check if this is a done action
-            if isinstance(action, dict) and 'done' in action:
-                agent_success = action['done'].get('success', None)
-            elif isinstance(action, str) and ("'done':" in action or '"done":' in action):
-                # Try to extract success from string representation
-                try:
-                    import ast
-                    parsed = ast.literal_eval(action)
-                    if 'done' in parsed:
-                        agent_success = parsed['done'].get('success', None)
-                except:
-                    pass
-
-        # Determine status based on agent's judgment first, then fallbacks
-        if hit_step_limit:
-            status = "unsuccessful"
-            status_text = "Unsuccessful - Step Limit Reached"
-        elif agent_success is not None:
-            # Use the agent's own determination
-            if agent_success:
-                status = "passed"
-                status_text = "Passed"
-            else:
-                status = "unsuccessful"
-                status_text = "Unsuccessful"
-        elif has_errors or has_few_actions:
-            status = "unsuccessful"
-            status_text = "Unsuccessful"
-        else:
-            status = "passed"
-            status_text = "Passed"
+        # Use StatusEvaluator to determine status
+        status, status_text = StatusEvaluator.evaluate_execution(
+            actions=actions,
+            errors=errors,
+            hit_step_limit=hit_step_limit
+        )
 
         # Generate report text
         if final_result:
@@ -435,7 +407,7 @@ The test was stopped to prevent excessive resource usage. Below is the partial r
             if hit_step_limit:
                 summary_text = "⚠️ The test execution reached the maximum limit of 30 steps and was terminated. The AI agent may have been stuck in a loop or the test case was too complex."
             else:
-                summary_text = "⚠️ The test execution encountered errors or completed with very few actions. This might indicate that the LLM was unable to properly interact with the page." if status == "unsuccessful" else "✅ Test completed successfully."
+                summary_text = "⚠️ The test execution encountered errors or completed with very few actions. This might indicate that the LLM was unable to properly interact with the page." if status == JobStatus.UNSUCCESSFUL.value else "✅ Test completed successfully."
 
             errors_text = ""
             if errors:
@@ -496,11 +468,11 @@ Errors encountered: {len(errors)}
 
         # Update final job status based on result
         if hit_step_limit:
-            update_job_status(job_id, "unsuccessful", 100, "Test unsuccessful: reached maximum 30 steps")
-        elif status == "unsuccessful":
-            update_job_status(job_id, "unsuccessful", 100, "Test execution unsuccessful")
+            update_job_status(job_id, JobStatus.UNSUCCESSFUL.value, 100, "Test unsuccessful: reached maximum 30 steps")
+        elif status == JobStatus.UNSUCCESSFUL.value:
+            update_job_status(job_id, JobStatus.UNSUCCESSFUL.value, 100, "Test execution unsuccessful")
         else:
-            update_job_status(job_id, "passed", 100, "Test execution passed")
+            update_job_status(job_id, JobStatus.PASSED.value, 100, "Test execution passed")
 
         return {
             "job_id": job_id,
@@ -509,7 +481,7 @@ Errors encountered: {len(errors)}
         }
 
     except Exception as e:
-        update_job_status(job_id, "failed", 0, f"Error: {str(e)}")
+        update_job_status(job_id, JobStatus.FAILED.value, 0, f"Error: {str(e)}")
         raise
 
 
@@ -542,7 +514,7 @@ def replay_actions_task(
         expected_outcome: What the test should achieve
     """
     try:
-        update_job_status(job_id, "processing", 10, "Initializing replay")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 10, "Initializing replay")
 
         # Import here to avoid circular dependency
         from app.services.replay_service import ReplayService
@@ -555,7 +527,7 @@ def replay_actions_task(
             cdp_url=cdp_url
         )
 
-        update_job_status(job_id, "processing", 30, "Replaying actions")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 30, "Replaying actions")
 
         # Run replay with expectations for better evaluation
         result = asyncio.run(replay_service.replay_actions(
@@ -566,7 +538,7 @@ def replay_actions_task(
             headless=headless
         ))
 
-        update_job_status(job_id, "processing", 80, "Generating replay report")
+        update_job_status(job_id, JobStatus.EXECUTING.value, 80, "Generating replay report")
 
         # Generate report
         report_text = f"""# Test Replay Report
@@ -616,7 +588,7 @@ Total actions: {len(actions)}
         }
 
     except Exception as e:
-        update_job_status(job_id, "failed", 0, f"Error: {str(e)}")
+        update_job_status(job_id, JobStatus.FAILED.value, 0, f"Error: {str(e)}")
         raise
 
 

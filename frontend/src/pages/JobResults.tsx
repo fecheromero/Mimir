@@ -5,6 +5,7 @@ import JobStatus from '../components/JobStatus'
 import TestCaseViewer from '../components/TestCaseViewer'
 import ResultsViewer from '../components/ResultsViewer'
 import { jobsApi, testCasesApi } from '../services/api'
+import { JobStatus as JobStatusEnum, JobStatusHelper } from '../models/JobStatus'
 
 interface JobStatusData {
   status: string
@@ -87,14 +88,13 @@ export default function JobResults(): JSX.Element {
         setStatus(statusData)
 
         // If generation is complete and we haven't loaded test cases yet
-        if ((statusData.status === 'completed' || statusData.status === 'generated') && mode === 'generate' && !testCases) {
+        if ((statusData.status === JobStatusEnum.COMPLETED || statusData.status === JobStatusEnum.GENERATED) && mode === 'generate' && !testCases) {
           const testCasesData: TestCasesResponse = await jobsApi.getTestCases(jobId)
           setTestCases(testCasesData.test_cases)
         }
 
         // If execution/replay is complete/failed and we haven't loaded results yet
-        const executionComplete = ['completed', 'passed', 'unsuccessful', 'failed'].includes(statusData.status)
-        if (executionComplete && (mode === 'execute' || mode === 'replay') && !results) {
+        if (JobStatusHelper.isTerminal(statusData.status) && (mode === 'execute' || mode === 'replay') && !results) {
           try {
             const resultsData: ResultsResponse = await jobsApi.getResults(jobId)
             setResults(resultsData.results)
@@ -113,8 +113,7 @@ export default function JobResults(): JSX.Element {
 
     // Then poll every 2 seconds until completed or failed
     const interval = setInterval(() => {
-      const terminalStatuses = ['completed', 'generated', 'passed', 'unsuccessful', 'failed']
-      if (status?.status && terminalStatuses.includes(status.status)) {
+      if (status?.status && JobStatusHelper.isTerminal(status.status)) {
         clearInterval(interval)
       } else {
         pollStatus()

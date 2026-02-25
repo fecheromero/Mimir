@@ -1,4 +1,5 @@
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { JobStatus as JobStatusEnum, JobStatusHelper } from '../models/JobStatus'
 
 interface JobStatusProps {
   status: string
@@ -8,57 +9,42 @@ interface JobStatusProps {
 
 export default function JobStatus({ status, progress, currentStep }: JobStatusProps): JSX.Element {
   const getStatusIcon = (): JSX.Element => {
-    switch (status) {
-      case 'generated':
-      case 'passed':
-      case 'completed':
-        return <CheckCircle className="w-6 h-6 text-green-600" />
-      case 'failed':
-      case 'unsuccessful':
-        return <XCircle className="w-6 h-6 text-red-600" />
-      case 'generating':
-      case 'executing':
-      case 'processing':
-      default:
-        return <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+    if (JobStatusHelper.isSuccess(status)) {
+      return <CheckCircle className="w-6 h-6 text-green-600" />
     }
+    if (JobStatusHelper.isFailure(status)) {
+      return <XCircle className="w-6 h-6 text-red-600" />
+    }
+    return <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
   }
 
   const getStatusColor = (): string => {
-    switch (status) {
-      case 'generated':
-      case 'passed':
-      case 'completed':
-        return 'bg-green-500/20 text-green-400'
-      case 'failed':
-      case 'unsuccessful':
-        return 'bg-red-500/20 text-red-400'
-      case 'generating':
-      case 'executing':
-      case 'processing':
-        return 'bg-blue-500/20 text-blue-400'
-      default:
-        return 'bg-blue-500/20 text-blue-400'
+    if (JobStatusHelper.isSuccess(status)) {
+      return 'bg-green-500/20 text-green-400'
     }
+    if (JobStatusHelper.isFailure(status)) {
+      return 'bg-red-500/20 text-red-400'
+    }
+    return 'bg-blue-500/20 text-blue-400'
   }
 
   const getStatusLabel = (): string => {
     switch (status) {
-      case 'generating':
+      case JobStatusEnum.GENERATING:
         return 'GENERATING'
-      case 'generated':
+      case JobStatusEnum.GENERATED:
         return 'GENERATED'
-      case 'executing':
+      case JobStatusEnum.EXECUTING:
         return 'EXECUTING'
-      case 'processing':
+      case JobStatusEnum.PROCESSING:
         return 'PROCESSING'
-      case 'passed':
+      case JobStatusEnum.PASSED:
         return 'PASSED'
-      case 'unsuccessful':
+      case JobStatusEnum.UNSUCCESSFUL:
         return 'UNSUCCESSFUL'
-      case 'failed':
+      case JobStatusEnum.FAILED:
         return 'FAILED'
-      case 'completed':
+      case JobStatusEnum.COMPLETED:
         return 'COMPLETED'
       default:
         return status.toUpperCase()

@@ -6,6 +6,7 @@ import redis
 
 from app.core.config import get_settings
 from app.services.storage_service import StorageService
+from app.models.job_status import JobStatus as JobStatusEnum
 
 settings = get_settings()
 redis_client = redis.from_url(settings.redis_url)
@@ -76,7 +77,7 @@ async def get_test_cases(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = redis_client.hget(job_key, "status").decode('utf-8')
-    if status not in ["completed", "generated"]:
+    if status not in [JobStatusEnum.COMPLETED.value, JobStatusEnum.GENERATED.value]:
         raise HTTPException(
             status_code=400,
             detail=f"Job is not completed yet. Current status: {status}"
@@ -111,8 +112,7 @@ async def get_results(job_id: str):
 
     status = redis_client.hget(job_key, "status").decode('utf-8')
     # Allow retrieving results for any finished job (passed, unsuccessful, failed, or legacy completed)
-    terminal_statuses = ["completed", "passed", "unsuccessful", "failed"]
-    if status not in terminal_statuses:
+    if status not in JobStatusEnum.terminal_statuses():
         raise HTTPException(
             status_code=400,
             detail=f"Job has not finished yet. Current status: {status}"
