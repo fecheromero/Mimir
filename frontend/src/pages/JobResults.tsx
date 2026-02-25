@@ -87,13 +87,14 @@ export default function JobResults(): JSX.Element {
         setStatus(statusData)
 
         // If generation is complete and we haven't loaded test cases yet
-        if (statusData.status === 'completed' && mode === 'generate' && !testCases) {
+        if ((statusData.status === 'completed' || statusData.status === 'generated') && mode === 'generate' && !testCases) {
           const testCasesData: TestCasesResponse = await jobsApi.getTestCases(jobId)
           setTestCases(testCasesData.test_cases)
         }
 
         // If execution/replay is complete/failed and we haven't loaded results yet
-        if ((statusData.status === 'completed' || statusData.status === 'failed') && (mode === 'execute' || mode === 'replay') && !results) {
+        const executionComplete = ['completed', 'passed', 'unsuccessful', 'failed'].includes(statusData.status)
+        if (executionComplete && (mode === 'execute' || mode === 'replay') && !results) {
           try {
             const resultsData: ResultsResponse = await jobsApi.getResults(jobId)
             setResults(resultsData.results)
@@ -112,7 +113,8 @@ export default function JobResults(): JSX.Element {
 
     // Then poll every 2 seconds until completed or failed
     const interval = setInterval(() => {
-      if (status?.status === 'completed' || status?.status === 'failed') {
+      const terminalStatuses = ['completed', 'generated', 'passed', 'unsuccessful', 'failed']
+      if (status?.status && terminalStatuses.includes(status.status)) {
         clearInterval(interval)
       } else {
         pollStatus()

@@ -225,17 +225,17 @@ class ReplayService:
 
                 # Priority: LLM evaluation > technical errors > default
                 if llm_says_fail or errors:
-                    status = "failed"
+                    status = "unsuccessful"
                     if errors:
                         summary = f"Executed {len(executed_actions)} actions with {len(errors)} errors. LLM evaluation: {'FAIL' if llm_says_fail else 'N/A'}"
                     else:
-                        summary = f"Executed {len(executed_actions)} actions but test failed based on LLM evaluation"
+                        summary = f"Executed {len(executed_actions)} actions but test unsuccessful based on LLM evaluation"
                 elif llm_says_pass:
-                    status = "completed"
+                    status = "passed"
                     summary = f"Successfully executed all {len(executed_actions)} actions. LLM evaluation: PASS"
                 else:
-                    # Default: completed if no errors
-                    status = "completed" if not errors else "failed"
+                    # Default: passed if no errors
+                    status = "passed" if not errors else "unsuccessful"
                     summary = f"Executed {len(executed_actions)} actions"
 
                 return {

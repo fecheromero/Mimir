@@ -39,21 +39,21 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
     logger.info(f"[Job {job_id}] Starting test case generation task")
 
     try:
-        update_job_status(job_id, "processing", 10, "Initializing test case generation")
-        logger.info(f"[Job {job_id}] Status updated to processing")
+        update_job_status(job_id, "generating", 10, "Initializing test case generation")
+        logger.info(f"[Job {job_id}] Status updated to generating")
 
         # Create agent and generate test cases
         logger.info(f"[Job {job_id}] Creating TestCaseAgent")
         agent = TestCaseAgent()
         logger.info(f"[Job {job_id}] TestCaseAgent created successfully")
 
-        update_job_status(job_id, "processing", 30, "Generating test cases with AI")
+        update_job_status(job_id, "generating", 30, "Generating test cases with AI")
         logger.info(f"[Job {job_id}] Calling LLM to generate test cases")
 
         test_case_text = agent.generate_test_case(ticket_id, description)
         logger.info(f"[Job {job_id}] Test cases generated successfully (length: {len(test_case_text)} chars)")
 
-        update_job_status(job_id, "processing", 70, "Formatting test cases")
+        update_job_status(job_id, "generating", 70, "Formatting test cases")
 
         # Structure the test cases
         test_cases = {
@@ -69,12 +69,12 @@ def generate_test_cases_task(self, job_id: str, ticket_id: str, description: str
         storage.save_test_cases(job_id, test_cases)
         logger.info(f"[Job {job_id}] Test cases saved successfully")
 
-        update_job_status(job_id, "completed", 100, "Test cases generated successfully")
+        update_job_status(job_id, "generated", 100, "Test cases generated successfully")
         logger.info(f"[Job {job_id}] Task completed successfully")
 
         return {
             "job_id": job_id,
-            "status": "completed",
+            "status": "generated",
             "test_cases": test_cases
         }
 
@@ -178,7 +178,7 @@ def execute_test_cases_task(
         user_password: Optional user password for login
     """
     try:
-        update_job_status(job_id, "processing", 10, "Initializing browser automation")
+        update_job_status(job_id, "executing", 10, "Initializing browser automation")
 
         # Create QA agent
         agent = QaAgent(
@@ -189,7 +189,7 @@ def execute_test_cases_task(
             cdp_url=cdp_url
         )
 
-        update_job_status(job_id, "processing", 30, "Starting test execution")
+        update_job_status(job_id, "executing", 30, "Starting test execution")
 
         # Run tests with 10 minute timeout, capturing logs (local mode only)
         log_capture = LogCapture() if settings.browser_execution_mode == "local" else None
@@ -199,7 +199,7 @@ def execute_test_cases_task(
             result = asyncio.run(_run_with_timeout(agent, test_case_text, headless, log_capture))
         except asyncio.TimeoutError:
             timed_out = True
-            update_job_status(job_id, "processing", 80, "Test timed out, generating partial report")
+            update_job_status(job_id, "executing", 80, "Test timed out, generating partial report")
 
         # If timeout occurred, try to get partial results (if available)
         if timed_out and result is None:
@@ -219,7 +219,7 @@ Test executed at: {datetime.utcnow().isoformat()}
 
 URL: {url}
 
-**Status: FAILED - Timeout**
+**Status: UNSUCCESSFUL - Timeout**
 
 ## Error
 
@@ -272,7 +272,7 @@ Please verify:
                 "results": results
             }
 
-        update_job_status(job_id, "processing", 80, "Generating test report")
+        update_job_status(job_id, "executing", 80, "Generating test report")
 
         # Extract results
         final_result = result.final_result() if hasattr(result, 'final_result') else None
@@ -391,22 +391,22 @@ Please verify:
 
         # Determine status based on agent's judgment first, then fallbacks
         if hit_step_limit:
-            status = "failed"
-            status_text = "Failed - Step Limit Reached"
+            status = "unsuccessful"
+            status_text = "Unsuccessful - Step Limit Reached"
         elif agent_success is not None:
             # Use the agent's own determination
             if agent_success:
-                status = "completed"
-                status_text = "Completed"
+                status = "passed"
+                status_text = "Passed"
             else:
-                status = "failed"
-                status_text = "Failed"
+                status = "unsuccessful"
+                status_text = "Unsuccessful"
         elif has_errors or has_few_actions:
-            status = "failed"
-            status_text = "Failed"
+            status = "unsuccessful"
+            status_text = "Unsuccessful"
         else:
-            status = "completed"
-            status_text = "Completed"
+            status = "passed"
+            status_text = "Passed"
 
         # Generate report text
         if final_result:
@@ -414,7 +414,7 @@ Please verify:
             if hit_step_limit:
                 report_text = f"""# Test Execution Report
 
-**Status: FAILED - Step Limit Reached**
+**Status: UNSUCCESSFUL - Step Limit Reached**
 
 ⚠️ **The test execution reached the maximum limit of 30 steps and was terminated.**
 
@@ -435,7 +435,7 @@ The test was stopped to prevent excessive resource usage. Below is the partial r
             if hit_step_limit:
                 summary_text = "⚠️ The test execution reached the maximum limit of 30 steps and was terminated. The AI agent may have been stuck in a loop or the test case was too complex."
             else:
-                summary_text = "⚠️ The test execution encountered errors or completed with very few actions. This might indicate that the LLM was unable to properly interact with the page." if status == "failed" else "✅ Test completed successfully."
+                summary_text = "⚠️ The test execution encountered errors or completed with very few actions. This might indicate that the LLM was unable to properly interact with the page." if status == "unsuccessful" else "✅ Test completed successfully."
 
             errors_text = ""
             if errors:
@@ -496,11 +496,11 @@ Errors encountered: {len(errors)}
 
         # Update final job status based on result
         if hit_step_limit:
-            update_job_status(job_id, "failed", 100, "Test failed: reached maximum 30 steps")
-        elif status == "failed":
-            update_job_status(job_id, "failed", 100, "Test execution failed")
+            update_job_status(job_id, "unsuccessful", 100, "Test unsuccessful: reached maximum 30 steps")
+        elif status == "unsuccessful":
+            update_job_status(job_id, "unsuccessful", 100, "Test execution unsuccessful")
         else:
-            update_job_status(job_id, "completed", 100, "Test execution completed")
+            update_job_status(job_id, "passed", 100, "Test execution passed")
 
         return {
             "job_id": job_id,

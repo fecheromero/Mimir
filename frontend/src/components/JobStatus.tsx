@@ -9,10 +9,16 @@ interface JobStatusProps {
 export default function JobStatus({ status, progress, currentStep }: JobStatusProps): JSX.Element {
   const getStatusIcon = (): JSX.Element => {
     switch (status) {
+      case 'generated':
+      case 'passed':
       case 'completed':
         return <CheckCircle className="w-6 h-6 text-green-600" />
       case 'failed':
+      case 'unsuccessful':
         return <XCircle className="w-6 h-6 text-red-600" />
+      case 'generating':
+      case 'executing':
+      case 'processing':
       default:
         return <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
     }
@@ -20,12 +26,42 @@ export default function JobStatus({ status, progress, currentStep }: JobStatusPr
 
   const getStatusColor = (): string => {
     switch (status) {
+      case 'generated':
+      case 'passed':
       case 'completed':
         return 'bg-green-500/20 text-green-400'
       case 'failed':
+      case 'unsuccessful':
         return 'bg-red-500/20 text-red-400'
+      case 'generating':
+      case 'executing':
+      case 'processing':
+        return 'bg-blue-500/20 text-blue-400'
       default:
         return 'bg-blue-500/20 text-blue-400'
+    }
+  }
+
+  const getStatusLabel = (): string => {
+    switch (status) {
+      case 'generating':
+        return 'GENERATING'
+      case 'generated':
+        return 'GENERATED'
+      case 'executing':
+        return 'EXECUTING'
+      case 'processing':
+        return 'PROCESSING'
+      case 'passed':
+        return 'PASSED'
+      case 'unsuccessful':
+        return 'UNSUCCESSFUL'
+      case 'failed':
+        return 'FAILED'
+      case 'completed':
+        return 'COMPLETED'
+      default:
+        return status.toUpperCase()
     }
   }
 
@@ -36,7 +72,7 @@ export default function JobStatus({ status, progress, currentStep }: JobStatusPr
           {getStatusIcon()}
           <div>
             <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${getStatusColor()}`}>
-              {status.toUpperCase()}
+              {getStatusLabel()}
             </span>
           </div>
         </div>

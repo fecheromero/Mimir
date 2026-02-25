@@ -76,7 +76,7 @@ async def get_test_cases(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = redis_client.hget(job_key, "status").decode('utf-8')
-    if status != "completed":
+    if status not in ["completed", "generated"]:
         raise HTTPException(
             status_code=400,
             detail=f"Job is not completed yet. Current status: {status}"
@@ -110,8 +110,9 @@ async def get_results(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     status = redis_client.hget(job_key, "status").decode('utf-8')
-    # Allow retrieving results for both completed and failed jobs
-    if status not in ["completed", "failed"]:
+    # Allow retrieving results for any finished job (passed, unsuccessful, failed, or legacy completed)
+    terminal_statuses = ["completed", "passed", "unsuccessful", "failed"]
+    if status not in terminal_statuses:
         raise HTTPException(
             status_code=400,
             detail=f"Job has not finished yet. Current status: {status}"

@@ -129,7 +129,7 @@ async def execute_sync_test(
 
     try:
         # Update status in Redis
-        redis_client.hset(f"jobs:{job_id}", "status", "processing")
+        redis_client.hset(f"jobs:{job_id}", "status", "executing")
         redis_client.hset(f"jobs:{job_id}", "progress", 30)
         redis_client.hset(f"jobs:{job_id}", "current_step", "Starting test execution")
 
@@ -177,8 +177,17 @@ async def execute_sync_test(
         actions = [make_json_serializable(a) for a in raw_actions]
         errors = [make_json_serializable(e) for e in raw_errors]
 
-        # Determine status
-        status = "completed" if not errors else "failed"
+        # Determine status - check agent's own success determination
+        agent_success = None
+        for action in actions:
+            if isinstance(action, dict) and 'done' in action:
+                agent_success = action['done'].get('success', None)
+
+        # Use agent's determination or fallback to error check
+        if agent_success is not None:
+            status = "passed" if agent_success else "unsuccessful"
+        else:
+            status = "passed" if not errors else "unsuccessful"
 
         # Save results
         execution_result = {
@@ -199,7 +208,8 @@ async def execute_sync_test(
         # Update final status
         redis_client.hset(f"jobs:{job_id}", "status", status)
         redis_client.hset(f"jobs:{job_id}", "progress", 100)
-        redis_client.hset(f"jobs:{job_id}", "current_step", "Test execution completed")
+        current_step = f"Test execution {status}"
+        redis_client.hset(f"jobs:{job_id}", "current_step", current_step)
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
 
         return {
