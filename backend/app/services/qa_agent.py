@@ -123,6 +123,9 @@ class QaAgent:
         from browser_use_sdk import AsyncBrowserUse
 
         # Build task with credentials if provided
+        # Note: We ask the agent to begin reports with status keywords to aid automated status detection,
+        # but StatusEvaluator uses flexible pattern matching and fallback strategies to handle cases
+        # where the agent doesn't follow this format exactly.
         if self.email and self.password:
             task_with_context = f"""
 Go to {self.base_url} and sign in with the following credentials:
@@ -131,6 +134,8 @@ Go to {self.base_url} and sign in with the following credentials:
 
 Then execute the following test case:
 {test_case}
+
+IMPORTANT: When you complete the test and generate your final report, begin the report with either "PASSED" or "UNSUCCESSFUL" based on your evaluation of whether the test succeeded or failed.
 """
         else:
             task_with_context = f"""
@@ -138,6 +143,8 @@ Go to {self.base_url}
 
 Then execute the following test case:
 {test_case}
+
+IMPORTANT: When you complete the test and generate your final report, begin the report with either "PASSED" or "UNSUCCESSFUL" based on your evaluation of whether the test succeeded or failed.
 """
 
         # Initialize cloud client
@@ -166,6 +173,9 @@ Then execute the following test case:
         Execute test using local browser-use with Playwright.
         """
         # Build task with credentials if provided
+        # Note: We ask the agent to begin reports with status keywords to aid automated status detection,
+        # but StatusEvaluator uses flexible pattern matching and fallback strategies to handle cases
+        # where the agent doesn't follow this format exactly.
         if self.email and self.password:
             task_with_context = f"""
 Go to {self.base_url} and sign in with the following credentials:
@@ -174,6 +184,8 @@ Go to {self.base_url} and sign in with the following credentials:
 
 Then execute the following test case:
 {test_case}
+
+IMPORTANT: When you complete the test and generate your final report, begin the report with either "PASSED" or "UNSUCCESSFUL" based on your evaluation of whether the test succeeded or failed.
 """
         else:
             task_with_context = f"""
@@ -181,6 +193,8 @@ Go to {self.base_url}
 
 Then execute the following test case:
 {test_case}
+
+IMPORTANT: When you complete the test and generate your final report, begin the report with either "PASSED" or "UNSUCCESSFUL" based on your evaluation of whether the test succeeded or failed.
 """
 
         # Create browser instance (browser-use 0.11.9)

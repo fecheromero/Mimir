@@ -1,4 +1,5 @@
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { JobStatus as JobStatusEnum, JobStatusHelper } from '../models/JobStatus'
 
 interface JobStatusProps {
   status: string
@@ -8,24 +9,45 @@ interface JobStatusProps {
 
 export default function JobStatus({ status, progress, currentStep }: JobStatusProps): JSX.Element {
   const getStatusIcon = (): JSX.Element => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-6 h-6 text-green-600" />
-      case 'failed':
-        return <XCircle className="w-6 h-6 text-red-600" />
-      default:
-        return <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+    if (JobStatusHelper.isSuccess(status)) {
+      return <CheckCircle className="w-6 h-6 text-green-600" />
     }
+    if (JobStatusHelper.isFailure(status)) {
+      return <XCircle className="w-6 h-6 text-red-600" />
+    }
+    return <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
   }
 
   const getStatusColor = (): string => {
+    if (JobStatusHelper.isSuccess(status)) {
+      return 'bg-green-500/20 text-green-400'
+    }
+    if (JobStatusHelper.isFailure(status)) {
+      return 'bg-red-500/20 text-red-400'
+    }
+    return 'bg-blue-500/20 text-blue-400'
+  }
+
+  const getStatusLabel = (): string => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-500/20 text-green-400'
-      case 'failed':
-        return 'bg-red-500/20 text-red-400'
+      case JobStatusEnum.GENERATING:
+        return 'GENERATING'
+      case JobStatusEnum.GENERATED:
+        return 'GENERATED'
+      case JobStatusEnum.EXECUTING:
+        return 'EXECUTING'
+      case JobStatusEnum.PROCESSING:
+        return 'PROCESSING'
+      case JobStatusEnum.PASSED:
+        return 'PASSED'
+      case JobStatusEnum.UNSUCCESSFUL:
+        return 'UNSUCCESSFUL'
+      case JobStatusEnum.FAILED:
+        return 'FAILED'
+      case JobStatusEnum.COMPLETED:
+        return 'COMPLETED'
       default:
-        return 'bg-blue-500/20 text-blue-400'
+        return status.toUpperCase()
     }
   }
 
@@ -36,7 +58,7 @@ export default function JobStatus({ status, progress, currentStep }: JobStatusPr
           {getStatusIcon()}
           <div>
             <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${getStatusColor()}`}>
-              {status.toUpperCase()}
+              {getStatusLabel()}
             </span>
           </div>
         </div>

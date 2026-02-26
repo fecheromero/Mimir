@@ -8,6 +8,8 @@ import json
 
 from app.core.config import get_settings
 from app.workers.tasks import generate_test_cases_task, execute_test_cases_task, replay_actions_task
+from app.services.status_evaluator import StatusEvaluator
+from app.models.job_status import JobStatus as JobStatusEnum
 
 settings = get_settings()
 redis_client = redis.from_url(settings.redis_url)
@@ -129,7 +131,7 @@ async def execute_sync_test(
 
     try:
         # Update status in Redis
-        redis_client.hset(f"jobs:{job_id}", "status", "processing")
+        redis_client.hset(f"jobs:{job_id}", "status", JobStatusEnum.EXECUTING.value)
         redis_client.hset(f"jobs:{job_id}", "progress", 30)
         redis_client.hset(f"jobs:{job_id}", "current_step", "Starting test execution")
 
@@ -177,8 +179,12 @@ async def execute_sync_test(
         actions = [make_json_serializable(a) for a in raw_actions]
         errors = [make_json_serializable(e) for e in raw_errors]
 
-        # Determine status
-        status = "completed" if not errors else "failed"
+        # Use StatusEvaluator to determine status
+        status, _ = StatusEvaluator.evaluate_execution(
+            actions=actions,
+            errors=errors,
+            final_report=final_result
+        )
 
         # Save results
         execution_result = {
@@ -199,7 +205,8 @@ async def execute_sync_test(
         # Update final status
         redis_client.hset(f"jobs:{job_id}", "status", status)
         redis_client.hset(f"jobs:{job_id}", "progress", 100)
-        redis_client.hset(f"jobs:{job_id}", "current_step", "Test execution completed")
+        current_step = f"Test execution {status}"
+        redis_client.hset(f"jobs:{job_id}", "current_step", current_step)
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
 
         return {
