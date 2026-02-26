@@ -467,6 +467,18 @@ Errors encountered: {len(errors)}
         storage.save_results(job_id, results)
         storage.save_report(job_id, report_text)
 
+        # Save actions file for replay (without LLM cost)
+        actions_data = {
+            "version": "1.0",
+            "actions": replay_actions,
+            "url": url,
+            "test_case_text": test_case_text,
+            "test_expectations": test_expectations,
+            "expected_outcome": expected_outcome,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        storage.save_actions(job_id, actions_data)
+
         # Update final job status based on result
         if hit_step_limit:
             update_job_status(job_id, JobStatus.UNSUCCESSFUL.value, 100, "Test unsuccessful: reached maximum 30 steps")
@@ -579,6 +591,18 @@ Total actions: {len(actions)}
         storage = StorageService()
         storage.save_results(job_id, results)
         storage.save_report(job_id, report_text)
+
+        # Save actions file for future replay
+        actions_data = {
+            "version": "1.0",
+            "actions": actions,
+            "url": url,
+            "test_case_text": test_case_text,
+            "test_expectations": test_expectations,
+            "expected_outcome": expected_outcome,
+            "created_at": datetime.utcnow().isoformat()
+        }
+        storage.save_actions(job_id, actions_data)
 
         update_job_status(job_id, result['status'], 100, f"Replay {result['status']}")
 
