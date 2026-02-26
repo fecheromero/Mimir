@@ -9,6 +9,7 @@ import json
 from app.core.config import get_settings
 from app.workers.tasks import generate_test_cases_task, execute_test_cases_task, replay_actions_task
 from app.services.status_evaluator import StatusEvaluator
+from app.services.qa_run_history_service import QARunHistoryService
 from app.models.job_status import JobStatus as JobStatusEnum
 
 settings = get_settings()
@@ -44,6 +45,7 @@ class ReplayActionsRequest(BaseModel):
     browser_mode: Optional[str] = "new"  # "new" or "existing" (CDP)
     headless: Optional[bool] = False
     cdp_url: Optional[str] = None  # CDP URL when browser_mode is "existing"
+    parent_job_id: Optional[str] = None  # Job ID of the parent run (for replay tracking)
     sync: bool = True  # Execute synchronously (no Celery queue)
 
 
@@ -209,6 +211,22 @@ async def execute_sync_test(
         redis_client.hset(f"jobs:{job_id}", "current_step", current_step)
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
 
+        # Save to QA run history
+        try:
+            history_service = QARunHistoryService()
+            run_name = history_service.generate_run_name(test_case_text)
+            history_service.save_run(
+                job_id=job_id,
+                name=run_name,
+                status=status,
+                job_type="execute",
+                parent_run_id=None
+            )
+        except Exception as e:
+            # Log error but don't fail the task
+            import logging
+            logging.getLogger(__name__).error(f"Failed to save run to history: {e}")
+
         return {
             "job_id": job_id,
             "status": status,
@@ -242,7 +260,8 @@ async def execute_sync_replay(
     expected_outcome: str = None,
     browser_mode: str = "new",
     headless: bool = False,
-    cdp_url: str = None
+    cdp_url: str = None,
+    parent_job_id: str = None
 ):
     """
     Execute replay synchronously without Celery.
@@ -322,6 +341,31 @@ Total actions: {len(actions)}
         redis_client.hset(f"jobs:{job_id}", "progress", 100)
         redis_client.hset(f"jobs:{job_id}", "current_step", f"Replay {result['status']}")
         redis_client.expire(f"jobs:{job_id}", settings.job_retention_hours * 3600)
+
+        # Save to QA run history
+        try:
+            history_service = QARunHistoryService()
+            # Get parent run ID from parent job if provided
+            parent_run_id = None
+            if parent_job_id:
+                all_runs = history_service.get_all_runs()
+                for run in all_runs:
+                    if run.get("job_id") == parent_job_id:
+                        parent_run_id = run.get("run_id")
+                        break
+
+            run_name = history_service.generate_run_name(test_case_text or "Replay test")
+            history_service.save_run(
+                job_id=job_id,
+                name=run_name,
+                status=result['status'],
+                job_type="replay",
+                parent_run_id=parent_run_id
+            )
+        except Exception as e:
+            # Log error but don't fail the task
+            import logging
+            logging.getLogger(__name__).error(f"Failed to save replay to history: {e}")
 
         return {
             "job_id": job_id,
@@ -633,7 +677,8 @@ async def replay_actions(request: ReplayActionsRequest):
             request.expected_outcome,
             request.browser_mode,
             request.headless,
-            request.cdp_url
+            request.cdp_url,
+            request.parent_job_id
         )
     else:
         # Queue replay task (async execution)
@@ -648,6 +693,7 @@ async def replay_actions(request: ReplayActionsRequest):
             request.expected_outcome,
             request.browser_mode,
             request.headless,
-            request.cdp_url
+            request.cdp_url,
+            request.parent_job_id
         )
         return {"job_id": job_id, "status": "queued"}

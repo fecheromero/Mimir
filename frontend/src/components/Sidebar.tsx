@@ -1,10 +1,11 @@
 import { Link, useLocation } from 'react-router-dom'
-import { TestTube2, GitPullRequest } from 'lucide-react'
+import { TestTube2, GitPullRequest, History } from 'lucide-react'
 
 export default function Sidebar(): JSX.Element {
   const location = useLocation()
   const isQAActive = location.pathname === '/'
   const isPRActive = location.pathname.startsWith('/pr-reviewer')
+  const isHistoryActive = location.pathname.startsWith('/qa-run-history')
 
   return (
     <aside className="w-64 bg-[#0F1419] min-h-screen flex flex-col">
@@ -69,6 +70,18 @@ export default function Sidebar(): JSX.Element {
         >
           <TestTube2 className="w-5 h-5" />
           <span className="font-medium">QA Assistant</span>
+        </Link>
+
+        <Link
+          to="/qa-run-history"
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            isHistoryActive
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+          }`}
+        >
+          <History className="w-5 h-5" />
+          <span className="font-medium">QA Run History</span>
         </Link>
 
         <Link

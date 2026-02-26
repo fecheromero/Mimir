@@ -10,6 +10,7 @@ from app.services.test_case_agent import TestCaseAgent
 from app.services.qa_agent import QaAgent
 from app.services.storage_service import StorageService
 from app.services.status_evaluator import StatusEvaluator
+from app.services.qa_run_history_service import QARunHistoryService
 from app.models.job_status import JobStatus
 
 settings = get_settings()
@@ -487,6 +488,21 @@ Errors encountered: {len(errors)}
         else:
             update_job_status(job_id, JobStatus.PASSED.value, 100, "Test execution passed")
 
+        # Save to QA run history
+        try:
+            history_service = QARunHistoryService()
+            run_name = history_service.generate_run_name(test_case_text)
+            history_service.save_run(
+                job_id=job_id,
+                name=run_name,
+                status=status,
+                job_type="execute",
+                parent_run_id=None
+            )
+        except Exception as e:
+            # Log error but don't fail the task
+            logging.getLogger(__name__).error(f"Failed to save run to history: {e}")
+
         return {
             "job_id": job_id,
             "status": status,
@@ -511,7 +527,8 @@ def replay_actions_task(
     expected_outcome: str = None,
     browser_mode: str = "new",
     headless: bool = False,
-    cdp_url: str = None
+    cdp_url: str = None,
+    parent_job_id: str = None
 ):
     """
     Celery task to replay actions without LLM and evaluate result.
@@ -605,6 +622,31 @@ Total actions: {len(actions)}
         storage.save_actions(job_id, actions_data)
 
         update_job_status(job_id, result['status'], 100, f"Replay {result['status']}")
+
+        # Save to QA run history
+        try:
+            history_service = QARunHistoryService()
+            # Get parent run ID from parent job if provided
+            parent_run_id = None
+            if parent_job_id:
+                # Find the run associated with parent job
+                all_runs = history_service.get_all_runs()
+                for run in all_runs:
+                    if run.get("job_id") == parent_job_id:
+                        parent_run_id = run.get("run_id")
+                        break
+
+            run_name = history_service.generate_run_name(test_case_text or "Replay test")
+            history_service.save_run(
+                job_id=job_id,
+                name=run_name,
+                status=result['status'],
+                job_type="replay",
+                parent_run_id=parent_run_id
+            )
+        except Exception as e:
+            # Log error but don't fail the task
+            logging.getLogger(__name__).error(f"Failed to save replay to history: {e}")
 
         return {
             "job_id": job_id,
