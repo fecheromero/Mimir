@@ -18,7 +18,9 @@
       "Read(//Users/feche/.claude/skills/explain-code/**)",
       "Read(//Users/feche/.claude/**)",
       "Read(//Users/feche/.agents/skills/**)",
-      "Read(//Users/feche/**)"
+      "Read(//Users/feche/**)",
+      "Bash(find /Users/feche/proyects/Mimir/backend/app/storage/pr_reviews -name \"*.json\" -type f -exec ls -lt {} +)",
+      "Bash(find /Users/feche/proyects/Mimir/backend/app/storage/jobs/pr_reviews -name \"*.json\" -type f -exec ls -lt {} +)"
     ],
     "deny": [],
     "ask": []

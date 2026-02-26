@@ -16,6 +16,7 @@ export class Review {
     public readonly prHeadSha: string,
     public readonly reviewText: string | null,
     public readonly summary: string | null,
+    public readonly dangerZone: Improvement[],
     public readonly dummyImprovements: Improvement[],
     public readonly mediumImprovements: Improvement[],
     public readonly experimentalImprovements: Improvement[],
@@ -34,6 +35,19 @@ export class Review {
       }
 
       // Parse improvements arrays safely
+      const dangerZone = Array.isArray(data.review_data?.danger_zone)
+        ? data.review_data.danger_zone
+            .map((imp: any) => {
+              try {
+                return Improvement.fromJson(imp, 'danger')
+              } catch (error) {
+                console.warn('Failed to parse danger zone improvement:', error)
+                return null
+              }
+            })
+            .filter((imp: any) => imp !== null)
+        : []
+
       const dummyImprovements = Array.isArray(data.review_data?.dummy_improvements)
         ? data.review_data.dummy_improvements
             .map((imp: any) => {
@@ -82,6 +96,7 @@ export class Review {
         String(data.pr_head_sha || ''),
         data.review_text || null,
         data.review_data?.summary || null,
+        dangerZone,
         dummyImprovements,
         mediumImprovements,
         experimentalImprovements,
@@ -104,6 +119,7 @@ export class Review {
       review_text: this.reviewText,
       review_data: {
         summary: this.summary,
+        danger_zone: this.dangerZone.map(imp => imp.toJson()),
         dummy_improvements: this.dummyImprovements.map(imp => imp.toJson()),
         medium_improvements: this.mediumImprovements.map(imp => imp.toJson()),
         experimental_improvements: this.experimentalImprovements.map(imp => imp.toJson())
@@ -130,6 +146,7 @@ export class Review {
 
   get totalImprovements(): number {
     return (
+      this.dangerZone.length +
       this.dummyImprovements.length +
       this.mediumImprovements.length +
       this.experimentalImprovements.length
@@ -150,6 +167,7 @@ export class Review {
 
   getAllImprovements(): Improvement[] {
     return [
+      ...this.dangerZone,
       ...this.dummyImprovements,
       ...this.mediumImprovements,
       ...this.experimentalImprovements

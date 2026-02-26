@@ -416,14 +416,88 @@ Based on this experience, should we add anything to our reviewer guidelines?
 
 **CRITICAL: Your response MUST be valid JSON only. No markdown, no explanations outside the JSON.**
 
-Analyze the PR and categorize improvements into 3 levels:
+Analyze the PR and categorize improvements into 4 levels:
 
-1. **DUMMY IMPROVEMENTS** - Safe, trivial changes (auto-applicable):
+1. **DANGER ZONE** - Critical issues that WILL break the application:
+
+   **HIGHEST PRIORITY - Check these FIRST:**
+
+   **Build/Compilation Failures:**
+   - **Syntax errors**: Invalid code that won't compile/parse (missing quotes, invalid syntax like `l;asd'`, typos in keywords)
+   - **Compilation errors**: Type errors, undefined variables, missing imports that prevent build from completing
+   - **Build configuration errors**: Missing dependencies, broken import paths, incorrect package.json/requirements.txt
+   - **Code that prevents frontend from starting**: Crashes during React component initialization, module loading failures
+   - **Code that prevents backend from starting**: Application crashes at startup, module import errors, invalid config
+
+   **Runtime Crashes & Exceptions:**
+   - **Unhandled exceptions**: Null pointer dereferences, division by zero, array out of bounds, KeyError, AttributeError
+   - **Missing null/undefined checks**: Accessing properties on null/undefined objects
+   - **Broken alternative flows**: Unhandled error paths, missing exception handlers, uncaught promise rejections
+
+   **Frontend-Specific Issues:**
+   - **Infinite loops/re-renders**: useEffect without dependencies, setState in render, infinite async loops
+   - **UI flicker/blink**: Rapid state changes, missing loading states, race conditions in data fetching
+   - **Component crashes**: Missing prop validation, incorrect prop types, accessing undefined state
+
+   **Data Contract Violations (Frontend ↔ Backend):**
+   - **Model parsing failures**: Backend returns different field names than frontend expects (e.g., `user_id` vs `userId`)
+   - **Type mismatches**: Backend sends string but frontend expects number, missing required fields
+   - **Breaking schema changes**: Renamed/removed fields without backward compatibility, changed data structures
+   - **Parse errors**: fromJson/toJson methods fail due to missing fields, incorrect types, or null values
+
+   **API Error Handling:**
+   - **Unhandled backend errors**: API throws 500/400 but frontend doesn't handle error response
+   - **Missing error boundaries**: Frontend crashes instead of showing error UI when API fails
+   - **Uncaught async errors**: Promise rejections without .catch() or try/catch
+
+   **Missing Critical Data:**
+   - **User data not validated**: Missing user.id, user.email checks before accessing
+   - **Context data not checked**: Accessing context values that might be null/undefined
+   - **Third-party integration failures**: Missing error handling for GitHub API, LLM API, database failures
+   - **Configuration missing**: Required env variables (API keys, URLs) not validated at startup
+
+   **Breaking API Changes:**
+   - **Removed/renamed endpoints**: Frontend calls API that no longer exists
+   - **Changed function signatures**: Removed required parameters, changed return types
+   - **Removed/renamed functions**: Breaking changes without backward compatibility
+
+   **Security Vulnerabilities:**
+   - **SQL injection, XSS, CSRF**: Unvalidated user input in queries or rendered HTML
+   - **Exposed secrets**: API keys, passwords in code or logs
+   - **Auth bypasses**: Missing authentication checks, broken authorization logic
+
+   **Examples of DANGER ZONE issues:**
+   - `l;asd'` → Syntax error - Python/JS won't parse, application won't start
+   - `undefined_variable = 5` → NameError at runtime when code executes
+   - `const data = apiResponse.user.name` without checking if user exists → TypeError: Cannot read property 'name' of undefined
+   - `useEffect(() => setCount(count + 1), [])` → Infinite re-render loop, browser freezes
+   - Backend returns `{{user_name: "John"}}` but frontend expects `{{userName: "John"}}` → Parse error, User.fromJson() fails
+   - API returns 500 error but frontend has no try/catch → Unhandled promise rejection, blank screen
+   - `return user.password` → Exposing sensitive data in API response
+   - Missing `if (!user?.id)` check → Crash when user is null
+
+   For each danger zone issue, provide:
+   - Severity level (critical, high)
+   - Exact file path and line numbers
+   - Description of the issue
+   - What will break and when (e.g., "Frontend won't compile", "Application crashes at startup", "API call fails with unhandled error", "Infinite loop freezes browser")
+   - How to reproduce the issue (e.g., "Load page", "Click button", "Call API endpoint")
+   - Suggested fix with code example
+
+2. **DUMMY IMPROVEMENTS** - Safe, trivial changes (auto-applicable):
+
+   **ONLY include changes that are:**
    - Remove unused imports/variables
-   - Fix typos in comments/strings
-   - Fix linter warnings
-   - Remove debug statements
+   - Fix typos in comments/strings (NOT in code)
+   - Fix linter/formatting warnings (whitespace, quotes)
+   - Remove debug print/console.log statements
    - Format/indentation fixes
+
+   **DO NOT include in dummy:**
+   - Syntax errors (→ DANGER ZONE)
+   - Logic errors (→ MEDIUM or DANGER ZONE)
+   - Removing code that is actually used
+   - Changing variable names in code
 
    For each, provide:
    - Exact file path and line numbers
@@ -431,13 +505,13 @@ Analyze the PR and categorize improvements into 3 levels:
    - The EXACT replacement (as diff format)
    - Confidence score (0.0-1.0, only >0.85 for dummy)
 
-2. **MEDIUM IMPROVEMENTS** - Moderate complexity:
+3. **MEDIUM IMPROVEMENTS** - Moderate complexity:
    - Extract duplicate code
    - Apply design patterns
    - Improve error handling
    - Add validation
 
-3. **EXPERIMENTAL** - High risk/effort:
+4. **EXPERIMENTAL** - High risk/effort:
    - Architecture changes
    - Major refactoring
    - Technology migrations
@@ -447,6 +521,21 @@ Response format (MUST be valid JSON):
 ```json
 {{
   "summary": "Brief overall assessment",
+  "danger_zone": [
+    {{
+      "id": "dz1",
+      "title": "Short title",
+      "description": "What will break and why",
+      "severity": "critical",
+      "file_path": "src/app.js",
+      "line_start": 10,
+      "line_end": 15,
+      "what_breaks": "Specific functionality that will fail",
+      "reproduction_steps": "How to trigger the issue",
+      "suggested_fix": "Code or approach to fix",
+      "impact": "critical"
+    }}
+  ],
   "dummy_improvements": [
     {{
       "id": "d1",
@@ -488,15 +577,36 @@ Response format (MUST be valid JSON):
 ```
 
 **IMPORTANT:**
-- Only include dummy improvements if you can provide EXACT line content and replacement
+- **ALWAYS check for DANGER ZONE issues FIRST before categorizing anything else**
+- Syntax errors, compilation errors, and runtime crashes = DANGER ZONE (never dummy/medium)
+- Invalid code like `l;asd'` or `undefined_var` = DANGER ZONE critical severity
+- Only flag as danger zone if the issue will actually break the application
+- Dummy improvements = only safe cosmetic changes (unused imports, typos in comments, formatting)
 - Confidence >0.85 required for dummy category
-- Be conservative: when in doubt, categorize as medium, not dummy
-- Escape special characters in JSON strings
-- Ensure all JSON is properly formatted"""
+- When in doubt between dummy and medium, choose medium
+- When in doubt between medium and danger, choose danger if it could break
+- CRITICAL: Properly escape JSON strings:
+  - Use \\n for newlines (not literal newlines)
+  - Escape double quotes as \\"
+  - Escape backslashes as \\\\
+  - No literal newlines or tabs in string values
+- Ensure all JSON is properly formatted and parseable"""
 
         # Build prompt
         user_prompt = self._build_user_prompt(pr_info, diff, files, None)
-        user_prompt += "\n\nProvide your analysis as JSON following the format specified."
+        user_prompt += """
+
+Provide your analysis as valid JSON following the format specified above.
+
+CRITICAL JSON FORMATTING RULES:
+1. All string values must have properly escaped special characters
+2. Use \\n for newlines (never literal line breaks in strings)
+3. Use \\" for quotes inside strings
+4. Use \\\\ for backslashes
+5. Keep descriptions concise to avoid formatting issues
+6. Test that your JSON is valid before responding
+
+Return ONLY the JSON object, wrapped in ```json markdown code block."""
 
         messages = [{"role": "user", "content": user_prompt}]
 
@@ -532,6 +642,8 @@ Response format (MUST be valid JSON):
             structured_review = json.loads(json_str)
 
             # Validate structure
+            if "danger_zone" not in structured_review:
+                structured_review["danger_zone"] = []
             if "dummy_improvements" not in structured_review:
                 structured_review["dummy_improvements"] = []
             if "medium_improvements" not in structured_review:
@@ -544,11 +656,22 @@ Response format (MUST be valid JSON):
             return structured_review
 
         except json.JSONDecodeError as e:
+            # Log error metadata without sensitive content
+            response_lines = response_text.split('\n')
+            first_line = response_lines[0][:100] if response_lines else "N/A"
+
+            print(f"JSON Parse Error: {str(e)}")
+            print(f"Response length: {len(response_text)} chars")
+            print(f"Response first line: {first_line}")
+            print(f"Failed JSON length: {len(json_str)} chars")
+            print(f"Failed JSON first 200 chars: {json_str[:200]}")
+
             # Fallback: return empty structure with error
             return {
-                "summary": f"Error parsing review: {str(e)}",
+                "summary": f"Error parsing review JSON: {str(e)}. The LLM response may contain improperly escaped strings. Please try generating the review again.",
+                "danger_zone": [],
                 "dummy_improvements": [],
                 "medium_improvements": [],
                 "experimental_improvements": [],
-                "parse_error": response_text[:500]
+                "parse_error": f"JSON parse failed at position {e.pos if hasattr(e, 'pos') else 'unknown'}"
             }

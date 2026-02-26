@@ -1,6 +1,6 @@
 import { MODEL_PARSE_ERRORS, CONFIDENCE_THRESHOLDS } from '../utils/constants'
 
-export type ImprovementCategory = 'dummy' | 'medium' | 'experimental'
+export type ImprovementCategory = 'danger' | 'dummy' | 'medium' | 'experimental'
 export type ImprovementType =
   | 'remove_unused_import'
   | 'fix_typo'
@@ -28,7 +28,11 @@ export class Improvement {
     public readonly risk: string | null,
     public readonly effort: string | null,
     public readonly filesAffectedCount: number | null,
-    public readonly rationale: string | null
+    public readonly rationale: string | null,
+    public readonly severity: string | null,
+    public readonly whatBreaks: string | null,
+    public readonly reproductionSteps: string | null,
+    public readonly suggestedFix: string | null
   ) {}
 
   static fromJson(data: any, category: ImprovementCategory): Improvement {
@@ -36,6 +40,20 @@ export class Improvement {
       // Validate required fields
       if (!data.id || !data.title || !data.description) {
         throw new Error('Missing required fields: id, title, or description')
+      }
+
+      // Type guard: validate category-specific fields
+      if (category === 'danger') {
+        if (!data.severity) {
+          console.warn(`Danger zone improvement ${data.id} missing severity field`)
+        }
+        if (!data.what_breaks && !data.reproduction_steps) {
+          console.warn(`Danger zone improvement ${data.id} missing critical diagnostic fields`)
+        }
+      } else if (category === 'dummy') {
+        if (!data.diff && !data.file_path) {
+          console.warn(`Dummy improvement ${data.id} missing diff or file_path for auto-application`)
+        }
       }
 
       return new Improvement(
@@ -56,7 +74,11 @@ export class Improvement {
         data.risk || null,
         data.effort || null,
         data.files_affected_count ? Number(data.files_affected_count) : null,
-        data.rationale || null
+        data.rationale || null,
+        data.severity || null,
+        data.what_breaks || null,
+        data.reproduction_steps || null,
+        data.suggested_fix || null
       )
     } catch (error) {
       console.error(MODEL_PARSE_ERRORS.IMPROVEMENT, error)
@@ -82,8 +104,16 @@ export class Improvement {
       risk: this.risk,
       effort: this.effort,
       files_affected_count: this.filesAffectedCount,
-      rationale: this.rationale
+      rationale: this.rationale,
+      severity: this.severity,
+      what_breaks: this.whatBreaks,
+      reproduction_steps: this.reproductionSteps,
+      suggested_fix: this.suggestedFix
     }
+  }
+
+  get isDanger(): boolean {
+    return this.category === 'danger'
   }
 
   get isDummy(): boolean {

@@ -75,6 +75,18 @@ This file contains the guidelines and rules for reviewing Pull Requests. The AI 
 - Ensure external API responses are validated before use
 - Look for proper handling of optional/nullable fields
 
+
+## Additional Guidelines
+
+## AI Prompt Engineering & Agent Behavior
+
+- **Verify prompt instructions are unambiguous and testable**: Check that AI agent prompts include clear criteria for classification/decision-making with concrete examples
+- **Ensure prompts prevent false positives**: Look for guardrails that prevent over-classification (e.g., "only flag issues that WILL break, not MIGHT break")
+- **Check for output format validation**: Verify that prompts specify exact output formats and that parsing code handles all valid variations
+- **Review prompt versioning strategy**: Ensure changes to AI prompts are tracked and testable, especially for critical classification logic
+- **Validate prompt examples match real scenarios**: Check that examples in prompts reflect actual use cases from the codebase
+
+
 ---
 
 **Note**: This file is continuously improved based on review experience. The AI may suggest additions to these rules after conducting reviews.

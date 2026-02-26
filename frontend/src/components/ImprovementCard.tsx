@@ -3,6 +3,19 @@ import { MessageSquare, CheckCircle2 } from 'lucide-react'
 import DiffPreview from './DiffPreview'
 import PromptBuilder from './PromptBuilder'
 
+// Danger zone styling constants
+const DANGER_ZONE_STYLES = {
+  border: 'border-red-800',
+  bg: 'bg-red-900/20',
+  text: 'text-red-400',
+  bgHighlight: 'bg-red-800/50',
+  severityCritical: 'bg-red-600/30 text-red-300 border border-red-500/50',
+  severityHigh: 'bg-orange-600/30 text-orange-300 border border-orange-500/50',
+  suggestedFixBg: 'bg-green-900/20',
+  suggestedFixBorder: 'border-green-800/50',
+  suggestedFixText: 'text-green-400',
+} as const
+
 interface Improvement {
   id: string
   title: string
@@ -18,6 +31,10 @@ interface Improvement {
   files_affected_count?: number
   rationale?: string
   confidence?: number
+  severity?: string
+  what_breaks?: string
+  reproduction_steps?: string
+  suggested_fix?: string
 }
 
 interface PR {
@@ -53,18 +70,18 @@ export default function ImprovementCard({
   }
 
   return (
-    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-4 mb-3">
+    <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-4 mb-3 overflow-hidden">
       <div className="flex items-start gap-3">
         {showCheckbox && onToggle && (
           <input
             type="checkbox"
             checked={selected}
             onChange={(e) => onToggle(improvement.id, e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900"
+            className="mt-1 w-4 h-4 rounded border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900 flex-shrink-0"
           />
         )}
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <h4 className="text-white font-medium">{improvement.title}</h4>
@@ -128,6 +145,42 @@ export default function ImprovementCard({
           {improvement.rationale && (
             <div className="mt-2 p-2 bg-gray-800/50 rounded text-xs text-gray-400 italic">
               {improvement.rationale}
+            </div>
+          )}
+
+          {/* Danger zone specific fields */}
+          {category === 'danger' && (
+            <div className="mt-3 space-y-2">
+              {improvement.severity && (
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} uppercase`}>Severity:</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    improvement.severity === 'critical'
+                      ? DANGER_ZONE_STYLES.severityCritical
+                      : DANGER_ZONE_STYLES.severityHigh
+                  }`}>
+                    {improvement.severity}
+                  </span>
+                </div>
+              )}
+              {improvement.what_breaks && (
+                <div className={`p-2 ${DANGER_ZONE_STYLES.bg} border ${DANGER_ZONE_STYLES.bgHighlight} rounded`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} mb-1`}>What Will Break:</div>
+                  <div className="text-xs text-gray-300">{improvement.what_breaks}</div>
+                </div>
+              )}
+              {improvement.reproduction_steps && (
+                <div className={`p-2 ${DANGER_ZONE_STYLES.bg} border ${DANGER_ZONE_STYLES.bgHighlight} rounded overflow-x-auto`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} mb-1`}>How to Reproduce:</div>
+                  <pre className="text-xs text-gray-300 whitespace-pre font-mono">{improvement.reproduction_steps}</pre>
+                </div>
+              )}
+              {improvement.suggested_fix && (
+                <div className={`p-2 ${DANGER_ZONE_STYLES.suggestedFixBg} border ${DANGER_ZONE_STYLES.suggestedFixBorder} rounded overflow-x-auto`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.suggestedFixText} mb-1`}>Suggested Fix:</div>
+                  <pre className="text-xs text-gray-300 whitespace-pre font-mono">{improvement.suggested_fix}</pre>
+                </div>
+              )}
             </div>
           )}
 
