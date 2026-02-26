@@ -44,7 +44,7 @@ async def get_run(run_id: str):
         raise HTTPException(status_code=404, detail="Run not found")
 
     # Get replays
-    replays = run.pop("replays", []) if "replays" in run else []
+     replays = run.pop("replays", [])
 
     return {
         **run,
