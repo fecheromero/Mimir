@@ -8,8 +8,8 @@ export default function DiffPreview({ diff }: DiffPreviewProps): JSX.Element | n
   const lines = diff.split('\n')
 
   return (
-    <div className="bg-gray-900 rounded-lg p-3 overflow-x-auto">
-      <pre className="text-xs font-mono">
+    <div className="bg-gray-900 rounded-lg overflow-x-auto">
+      <pre className="text-xs font-mono whitespace-pre p-3 min-w-fit">
         {lines.map((line, index) => {
           let className = 'text-gray-300'
           if (line.startsWith('+')) {

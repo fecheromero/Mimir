@@ -471,7 +471,7 @@ Analyze the PR and categorize improvements into 4 levels:
    - `undefined_variable = 5` → NameError at runtime when code executes
    - `const data = apiResponse.user.name` without checking if user exists → TypeError: Cannot read property 'name' of undefined
    - `useEffect(() => setCount(count + 1), [])` → Infinite re-render loop, browser freezes
-   - Backend returns `{user_name: "John"}` but frontend expects `{userName: "John"}` → Parse error, User.fromJson() fails
+   - Backend returns `{{user_name: "John"}}` but frontend expects `{{userName: "John"}}` → Parse error, User.fromJson() fails
    - API returns 500 error but frontend has no try/catch → Unhandled promise rejection, blank screen
    - `return user.password` → Exposing sensitive data in API response
    - Missing `if (!user?.id)` check → Crash when user is null
