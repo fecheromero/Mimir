@@ -8,6 +8,15 @@ import { useApplyImprovements } from '../hooks/useApplyImprovements'
 import { useReviewStatus } from '../hooks/useReviewStatus'
 import { PullRequest } from '@models'
 
+// Danger zone styling constants
+const DANGER_ZONE_STYLES = {
+  border: 'border-red-800',
+  bg: 'bg-red-900/20',
+  text: 'text-red-400',
+  badgeBg: 'bg-red-500/20',
+  hover: 'hover:bg-red-900/20',
+} as const
+
 interface StructuredReviewProps {
   reviewData: {
     summary?: string | null
@@ -48,6 +57,15 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
 
   // Hook for review status (merged improvements, outdated check)
   const { status: reviewStatus } = useReviewStatus(pr?.id, reviewId)
+
+  // Defensive: ensure reviewData is valid
+  if (!reviewData) {
+    return (
+      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+        <p className="text-yellow-400 text-sm">No review data available</p>
+      </div>
+    )
+  }
 
   const isImprovementMerged = (improvementId: string): boolean => {
     return reviewStatus?.isImprovementMerged(improvementId) || false
@@ -166,10 +184,10 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
       )}
 
       {/* Danger Zone */}
-      <div className="bg-[#0F1419] border border-red-800 rounded-lg">
+      <div className={`bg-[#0F1419] border ${DANGER_ZONE_STYLES.border} rounded-lg`}>
         <button
           onClick={() => toggleSection('danger')}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-red-900/20 transition-colors"
+          className={`w-full flex items-center justify-between p-4 text-left ${DANGER_ZONE_STYLES.hover} transition-colors`}
         >
           <div className="flex items-center gap-3">
             {expandedSections.danger ? (
@@ -177,19 +195,19 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
             ) : (
               <ChevronRight className="w-5 h-5 text-gray-400" />
             )}
-            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <AlertTriangle className={`w-5 h-5 ${DANGER_ZONE_STYLES.text}`} />
             <div>
               <h3 className="text-white font-semibold">Danger Zone</h3>
               <p className="text-gray-400 text-xs">Critical issues - Must be fixed before merge</p>
             </div>
           </div>
-          <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-sm font-bold">
+          <span className={`${DANGER_ZONE_STYLES.badgeBg} ${DANGER_ZONE_STYLES.text} px-2 py-1 rounded text-sm font-bold`}>
             {dangerCount}
           </span>
         </button>
 
         {expandedSections.danger && (
-          <div className="p-4 pt-0 border-t border-red-800">
+          <div className={`p-4 pt-0 border-t ${DANGER_ZONE_STYLES.border}`}>
             {dangerCount === 0 ? (
               <p className="text-gray-500 text-sm italic text-center py-4">
                 No critical issues found

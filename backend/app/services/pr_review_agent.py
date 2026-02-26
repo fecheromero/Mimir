@@ -656,10 +656,15 @@ Return ONLY the JSON object, wrapped in ```json markdown code block."""
             return structured_review
 
         except json.JSONDecodeError as e:
-            # Log the full error for debugging
+            # Log error metadata without sensitive content
+            response_lines = response_text.split('\n')
+            first_line = response_lines[0][:100] if response_lines else "N/A"
+
             print(f"JSON Parse Error: {str(e)}")
-            print(f"Failed JSON (first 1000 chars): {json_str[:1000]}")
-            print(f"Full response (first 2000 chars): {response_text[:2000]}")
+            print(f"Response length: {len(response_text)} chars")
+            print(f"Response first line: {first_line}")
+            print(f"Failed JSON length: {len(json_str)} chars")
+            print(f"Failed JSON first 200 chars: {json_str[:200]}")
 
             # Fallback: return empty structure with error
             return {
@@ -668,5 +673,5 @@ Return ONLY the JSON object, wrapped in ```json markdown code block."""
                 "dummy_improvements": [],
                 "medium_improvements": [],
                 "experimental_improvements": [],
-                "parse_error": response_text[:1000]
+                "parse_error": f"JSON parse failed at position {e.pos if hasattr(e, 'pos') else 'unknown'}"
             }

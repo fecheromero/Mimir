@@ -3,6 +3,19 @@ import { MessageSquare, CheckCircle2 } from 'lucide-react'
 import DiffPreview from './DiffPreview'
 import PromptBuilder from './PromptBuilder'
 
+// Danger zone styling constants
+const DANGER_ZONE_STYLES = {
+  border: 'border-red-800',
+  bg: 'bg-red-900/20',
+  text: 'text-red-400',
+  bgHighlight: 'bg-red-800/50',
+  severityCritical: 'bg-red-600/30 text-red-300 border border-red-500/50',
+  severityHigh: 'bg-orange-600/30 text-orange-300 border border-orange-500/50',
+  suggestedFixBg: 'bg-green-900/20',
+  suggestedFixBorder: 'border-green-800/50',
+  suggestedFixText: 'text-green-400',
+} as const
+
 interface Improvement {
   id: string
   title: string
@@ -140,31 +153,31 @@ export default function ImprovementCard({
             <div className="mt-3 space-y-2">
               {improvement.severity && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-red-400 uppercase">Severity:</span>
+                  <span className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} uppercase`}>Severity:</span>
                   <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                     improvement.severity === 'critical'
-                      ? 'bg-red-600/30 text-red-300 border border-red-500/50'
-                      : 'bg-orange-600/30 text-orange-300 border border-orange-500/50'
+                      ? DANGER_ZONE_STYLES.severityCritical
+                      : DANGER_ZONE_STYLES.severityHigh
                   }`}>
                     {improvement.severity}
                   </span>
                 </div>
               )}
               {improvement.what_breaks && (
-                <div className="p-2 bg-red-900/20 border border-red-800/50 rounded">
-                  <div className="text-xs font-semibold text-red-400 mb-1">What Will Break:</div>
+                <div className={`p-2 ${DANGER_ZONE_STYLES.bg} border ${DANGER_ZONE_STYLES.bgHighlight} rounded`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} mb-1`}>What Will Break:</div>
                   <div className="text-xs text-gray-300">{improvement.what_breaks}</div>
                 </div>
               )}
               {improvement.reproduction_steps && (
-                <div className="p-2 bg-red-900/20 border border-red-800/50 rounded overflow-x-auto">
-                  <div className="text-xs font-semibold text-red-400 mb-1">How to Reproduce:</div>
+                <div className={`p-2 ${DANGER_ZONE_STYLES.bg} border ${DANGER_ZONE_STYLES.bgHighlight} rounded overflow-x-auto`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.text} mb-1`}>How to Reproduce:</div>
                   <pre className="text-xs text-gray-300 whitespace-pre font-mono">{improvement.reproduction_steps}</pre>
                 </div>
               )}
               {improvement.suggested_fix && (
-                <div className="p-2 bg-green-900/20 border border-green-800/50 rounded overflow-x-auto">
-                  <div className="text-xs font-semibold text-green-400 mb-1">Suggested Fix:</div>
+                <div className={`p-2 ${DANGER_ZONE_STYLES.suggestedFixBg} border ${DANGER_ZONE_STYLES.suggestedFixBorder} rounded overflow-x-auto`}>
+                  <div className={`text-xs font-semibold ${DANGER_ZONE_STYLES.suggestedFixText} mb-1`}>Suggested Fix:</div>
                   <pre className="text-xs text-gray-300 whitespace-pre font-mono">{improvement.suggested_fix}</pre>
                 </div>
               )}

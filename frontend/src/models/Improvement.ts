@@ -42,6 +42,20 @@ export class Improvement {
         throw new Error('Missing required fields: id, title, or description')
       }
 
+      // Type guard: validate category-specific fields
+      if (category === 'danger') {
+        if (!data.severity) {
+          console.warn(`Danger zone improvement ${data.id} missing severity field`)
+        }
+        if (!data.what_breaks && !data.reproduction_steps) {
+          console.warn(`Danger zone improvement ${data.id} missing critical diagnostic fields`)
+        }
+      } else if (category === 'dummy') {
+        if (!data.diff && !data.file_path) {
+          console.warn(`Dummy improvement ${data.id} missing diff or file_path for auto-application`)
+        }
+      }
+
       return new Improvement(
         String(data.id),
         category,
