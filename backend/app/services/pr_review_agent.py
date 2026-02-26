@@ -84,6 +84,12 @@ class PRReviewAgent:
 
 ---
 
+**IMPORTANT:** You are reviewing the FINAL STATE of the PR, not individual commits.
+The diff represents cumulative changes from base to HEAD. Only review what's present in the final diff.
+Do NOT flag issues that were already fixed in later commits within this PR.
+
+---
+
 1. **Code Quality:**
    - Check for code clarity, readability, and maintainability
    - Identify complex logic that needs simplification
@@ -255,7 +261,12 @@ Be constructive, specific, and actionable. Focus on teaching, not just pointing 
             f"**Title:** {pr_info.get('title', 'N/A')}",
             f"**Author:** {pr_info.get('author', 'N/A')}",
             f"**Branch:** {pr_info.get('head_branch', 'N/A')} → {pr_info.get('base_branch', 'N/A')}",
+            f"**HEAD SHA:** {pr_info.get('head_sha', 'N/A')}",
             f"\n**Description:**\n{pr_info.get('body', 'No description provided.')}\n",
+            "\n**IMPORTANT:** The diff below represents the FINAL STATE of all changes in this PR.",
+            "This is a cumulative diff from the base branch to the current HEAD commit.",
+            "Do NOT review individual commits - only analyze the final resulting code changes.",
+            "If an issue was introduced and then fixed within this PR, it will NOT appear in this diff.\n",
         ]
 
         # Add file summary if available
@@ -414,7 +425,15 @@ Based on this experience, should we add anything to our reviewer guidelines?
 
 ---
 
-**CRITICAL: Your response MUST be valid JSON only. No markdown, no explanations outside the JSON.**
+**CRITICAL REVIEW INSTRUCTIONS:**
+
+1. **Your response MUST be valid JSON only. No markdown, no explanations outside the JSON.**
+
+2. **You are reviewing the FINAL STATE of the PR, not individual commits.**
+   - The diff you receive is a cumulative diff showing the net changes from base to HEAD.
+   - If code was added in one commit and removed in another, it won't appear in the diff.
+   - Only review what's actually present in the final diff - don't speculate about commit history.
+   - Do NOT flag issues that don't exist in the final code state.
 
 Analyze the PR and categorize improvements into 4 levels:
 
