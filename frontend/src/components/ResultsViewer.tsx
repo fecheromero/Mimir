@@ -3,11 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { FileText, FileJson, Play } from 'lucide-react'
 import { testCasesApi } from '../services/api'
-
 interface Action {
   [key: string]: unknown
 }
-
 interface TestResults {
   replay_actions?: Action[]
   url: string
@@ -18,19 +16,14 @@ interface TestResults {
   actions?: Action[]
   executed_at: string
 }
-
 interface ResultsViewerProps {
   results: TestResults | null
   jobId: string
 }
-
 export default function ResultsViewer({ results, jobId }: ResultsViewerProps): JSX.Element | null {
   const [executing, setExecuting] = useState<boolean>(false)
   const navigate = useNavigate()
-
   if (!results) return null
-
-
   const downloadReplayActions = (): void => {
     const replayData = {
       version: "1.0",
@@ -53,7 +46,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
-
   const downloadReportFile = (): void => {
     const reportContent = results.final_result || 'No report available'
     const blob = new Blob([reportContent], {
@@ -68,14 +60,12 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
-
   const executeReplay = async (): Promise<void> => {
     const actionsToReplay = results.replay_actions || results.actions
     if (!actionsToReplay || actionsToReplay.length === 0) {
       alert('No replay actions available')
       return
     }
-
     try {
       setExecuting(true)
       const response = await testCasesApi.replayActions(
@@ -87,7 +77,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
         results.test_expectations || null, // success criteria
         results.expected_outcome || null // expected outcome
       )
-
       // Navigate to replay job
       navigate(`/jobs/${response.job_id}`, {
         state: { mode: 'replay' }
@@ -99,7 +88,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
       setExecuting(false)
     }
   }
-
   return (
     <div className="bg-[#0F1419] border border-gray-800 rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
@@ -133,7 +121,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
           </button>
         </div>
       </div>
-
       {/* Test Report */}
       <div className="border border-gray-700 rounded-lg p-6 bg-[#0A0E14] mb-6">
         <h3 className="text-lg font-semibold text-white mb-4">Test Report</h3>
@@ -161,7 +148,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
           </ReactMarkdown>
         </div>
       </div>
-
       {/* Actions Summary */}
       <div className="border border-gray-700 rounded-lg p-6 bg-[#0A0E14]">
         <h3 className="text-lg font-semibold text-white mb-4">Actions Performed</h3>
@@ -177,7 +163,6 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
           </details>
         </div>
       </div>
-
       <div className="mt-6 pt-6 border-t border-gray-800 text-sm text-gray-400 space-y-1">
         <p>Executed: {new Date(results.executed_at).toLocaleString()}</p>
         <p>URL: {results.url}</p>
