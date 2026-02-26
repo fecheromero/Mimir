@@ -145,7 +145,8 @@ async def download_file(job_id: str, file_type: str):
     file_type_map = {
         "test-cases": "test_cases",
         "results": "results",
-        "report": "report"
+        "report": "report",
+        "actions": "actions"
     }
 
     internal_type = file_type_map.get(file_type)
@@ -161,12 +162,14 @@ async def download_file(job_id: str, file_type: str):
     media_type_map = {
         "test_cases": "application/json",
         "results": "application/json",
-        "report": "text/markdown"
+        "report": "text/markdown",
+        "actions": "application/json"
     }
     filename_map = {
         "test_cases": f"test_cases_{job_id}.json",
         "results": f"results_{job_id}.json",
-        "report": f"report_{job_id}.md"
+        "report": f"report_{job_id}.md",
+        "actions": f"actions_{job_id}.json"
     }
 
     return FileResponse(

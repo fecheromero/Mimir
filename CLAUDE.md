@@ -180,14 +180,41 @@ For replay tasks (`replay_actions_task`):
 - If no expectations → check for errors → COMPLETED (no errors) or FAILED (errors)
 - Status stored in result JSON and shown in UI
 
-### File Downloads
-Files are served via `/api/jobs/{job_id}/download/{type}`:
-- `test-cases`: JSON with test case text
-- `results`: JSON with execution results + actions
-- `report`: Markdown test report
-- `actions`: JSON with actions + expectations (for replay)
+### File Downloads and Storage
 
-Frontend downloads use browser `<a>` tag with blob URLs.
+**Job File Structure:**
+Each job creates files in `backend/app/storage/jobs/{job_id}/`:
+- `test_cases.json`: Generated test case (from TestCaseAgent)
+- `results.json`: Master file with ALL execution data
+  - Contains: `actions` (all actions including "done"), `replay_actions` (filtered), `final_result`, `errors`, `status`, etc.
+- `report.md`: Formatted Markdown report (saved separately for direct download)
+- `actions.json`: Replay-optimized file with filtered actions (saved separately for direct download)
+
+**Storage Service Methods:**
+- `save_test_cases()` → `test_cases.json`
+- `save_results()` → `results.json` (master file)
+- `save_report()` → `report.md`
+- `save_actions()` → `actions.json`
+
+**Frontend Download Buttons:**
+ResultsViewer shows 2-3 download buttons:
+1. **"Execute Replay"** (purple, Play icon) - Runs replay immediately
+2. **"Replay Actions"** (indigo, FileJson icon) - Downloads actions.json for later replay
+   - Only shown if `results.replay_actions` exists
+3. **"Report MD"** (green, FileText icon) - Downloads Markdown report
+
+**Frontend Download Implementation:**
+Downloads are generated client-side from `results` data (no backend calls):
+- `downloadReplayActions()`: Creates JSON from `results.replay_actions` + metadata
+- `downloadReportFile()`: Creates MD from `results.final_result`
+- Uses blob URLs for instant client-side downloads
+
+**Why results.json has both `actions` and `replay_actions`:**
+- `actions`: Complete action history (includes "done" action with final report)
+- `replay_actions`: Filtered version (excludes "done", only reproducible interactions)
+- Filter function: `_filter_actions_for_replay()` in `tasks.py`
+
+**Note:** This is NOT a production app - downloads generate files on-the-fly from in-memory data.
 
 ### Optional Credentials
 All three forms (TestCaseGenerator, TestCaseUploader, ReplayUploader) have:

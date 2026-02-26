@@ -112,13 +112,44 @@ class StorageService:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
 
+    def save_actions(self, job_id: str, actions_data: Dict[str, Any]) -> str:
+        """
+        Save actions with expectations to JSON file for replay.
+
+        Args:
+            job_id: Unique job identifier
+            actions_data: Actions data with expectations
+
+        Returns:
+            File path
+        """
+        job_dir = self.get_job_dir(job_id)
+        file_path = job_dir / "actions.json"
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(actions_data, f, indent=2, ensure_ascii=False)
+
+        return str(file_path)
+
+    def load_actions(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Load actions from JSON file."""
+        job_dir = self.get_job_dir(job_id)
+        file_path = job_dir / "actions.json"
+
+        if not file_path.exists():
+            return None
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
     def get_file_path(self, job_id: str, file_type: str) -> Optional[Path]:
         """Get the path to a specific file type for a job."""
         job_dir = self.get_job_dir(job_id)
         file_map = {
             "test_cases": "test_cases.json",
             "results": "results.json",
-            "report": "report.md"
+            "report": "report.md",
+            "actions": "actions.json"
         }
 
         if file_type not in file_map:

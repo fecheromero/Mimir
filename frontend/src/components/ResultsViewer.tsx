@@ -30,15 +30,16 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
 
   if (!results) return null
 
-  const downloadUrl = (type: string): string => `/api/jobs/${jobId}/download/${type}`
 
   const downloadReplayActions = (): void => {
     const replayData = {
+      version: "1.0",
       actions: results.replay_actions,
       url: results.url,
       test_case_text: results.test_case_text,
       test_expectations: results.test_expectations,
-      expected_outcome: results.expected_outcome
+      expected_outcome: results.expected_outcome,
+      created_at: results.executed_at
     }
     const blob = new Blob([JSON.stringify(replayData, null, 2)], {
       type: 'application/json'
@@ -53,8 +54,24 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
     URL.revokeObjectURL(url)
   }
 
+  const downloadReportFile = (): void => {
+    const reportContent = results.final_result || 'No report available'
+    const blob = new Blob([reportContent], {
+      type: 'text/markdown'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `report_${jobId}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const executeReplay = async (): Promise<void> => {
-    if (!results.replay_actions || results.replay_actions.length === 0) {
+    const actionsToReplay = results.replay_actions || results.actions
+    if (!actionsToReplay || actionsToReplay.length === 0) {
       alert('No replay actions available')
       return
     }
@@ -62,7 +79,7 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
     try {
       setExecuting(true)
       const response = await testCasesApi.replayActions(
-        results.replay_actions,
+        actionsToReplay,
         results.url,
         null, // user_email
         null, // user_password
@@ -88,7 +105,7 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold text-white">Test Results</h2>
         <div className="flex gap-2 flex-wrap justify-end">
-          {results.replay_actions && results.replay_actions.length > 0 && (
+          {(results.replay_actions || results.actions) && (results.replay_actions?.length > 0 || results.actions?.length > 0) && (
             <>
               <button
                 onClick={executeReplay}
@@ -107,22 +124,13 @@ export default function ResultsViewer({ results, jobId }: ResultsViewerProps): J
               </button>
             </>
           )}
-          <a
-            href={downloadUrl('results')}
-            download
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <FileJson className="w-4 h-4" />
-            <span className="font-medium">Results JSON</span>
-          </a>
-          <a
-            href={downloadUrl('report')}
-            download
+          <button
+            onClick={downloadReportFile}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             <FileText className="w-4 h-4" />
             <span className="font-medium">Report MD</span>
-          </a>
+          </button>
         </div>
       </div>
 
