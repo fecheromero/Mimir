@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import {ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink, X} from 'lucide-react'
+import {ChevronDown, ChevronRight, Zap, Wrench, Beaker, CheckSquare, Layers, ExternalLink, X, AlertTriangle} from 'lucide-react'
 import ImprovementCard from './ImprovementCard'
 import PromptBuilder from './PromptBuilder'
 import ApplyConfirmationModal from './ApplyConfirmationModal'
@@ -11,6 +11,7 @@ import { PullRequest } from '@models'
 interface StructuredReviewProps {
   reviewData: {
     summary?: string | null
+    danger_zone?: any[]
     dummy_improvements?: any[]
     medium_improvements?: any[]
     experimental_improvements?: any[]
@@ -22,6 +23,7 @@ interface StructuredReviewProps {
 type PromptType = 'medium' | 'experimental' | null
 
 interface ExpandedSections {
+  danger: boolean
   dummy: boolean
   medium: boolean
   experimental: boolean
@@ -29,6 +31,7 @@ interface ExpandedSections {
 
 export default function StructuredReview({ reviewData, pr, reviewId }: StructuredReviewProps) {
   const [expandedSections, setExpandedSections] = useState<ExpandedSections>({
+    danger: true,
     dummy: true,
     medium: false,
     experimental: false
@@ -147,6 +150,7 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
     }
   }, [result?.success, showApplyModal, reset])
 
+  const dangerCount = reviewData.danger_zone?.length || 0
   const dummyCount = reviewData.dummy_improvements?.length || 0
   const mediumCount = reviewData.medium_improvements?.length || 0
   const experimentalCount = reviewData.experimental_improvements?.length || 0
@@ -160,6 +164,52 @@ export default function StructuredReview({ reviewData, pr, reviewId }: Structure
           <p className="text-gray-300 text-sm">{reviewData.summary}</p>
         </div>
       )}
+
+      {/* Danger Zone */}
+      <div className="bg-[#0F1419] border border-red-800 rounded-lg">
+        <button
+          onClick={() => toggleSection('danger')}
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-red-900/20 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            {expandedSections.danger ? (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            )}
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <div>
+              <h3 className="text-white font-semibold">Danger Zone</h3>
+              <p className="text-gray-400 text-xs">Critical issues - Must be fixed before merge</p>
+            </div>
+          </div>
+          <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded text-sm font-bold">
+            {dangerCount}
+          </span>
+        </button>
+
+        {expandedSections.danger && (
+          <div className="p-4 pt-0 border-t border-red-800">
+            {dangerCount === 0 ? (
+              <p className="text-gray-500 text-sm italic text-center py-4">
+                No critical issues found
+              </p>
+            ) : (
+              <>
+                {reviewData.danger_zone?.map((improvement) => (
+                  <ImprovementCard
+                    key={improvement.id}
+                    improvement={improvement}
+                    category="danger"
+                    pr={pr}
+                    showCheckbox={false}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Dummy Improvements */}
       <div className="bg-[#0F1419] border border-gray-800 rounded-lg">

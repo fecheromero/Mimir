@@ -18,6 +18,10 @@ interface Improvement {
   files_affected_count?: number
   rationale?: string
   confidence?: number
+  severity?: string
+  what_breaks?: string
+  reproduction_steps?: string
+  suggested_fix?: string
 }
 
 interface PR {
@@ -128,6 +132,42 @@ export default function ImprovementCard({
           {improvement.rationale && (
             <div className="mt-2 p-2 bg-gray-800/50 rounded text-xs text-gray-400 italic">
               {improvement.rationale}
+            </div>
+          )}
+
+          {/* Danger zone specific fields */}
+          {category === 'danger' && (
+            <div className="mt-3 space-y-2">
+              {improvement.severity && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-red-400 uppercase">Severity:</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                    improvement.severity === 'critical'
+                      ? 'bg-red-600/30 text-red-300 border border-red-500/50'
+                      : 'bg-orange-600/30 text-orange-300 border border-orange-500/50'
+                  }`}>
+                    {improvement.severity}
+                  </span>
+                </div>
+              )}
+              {improvement.what_breaks && (
+                <div className="p-2 bg-red-900/20 border border-red-800/50 rounded">
+                  <div className="text-xs font-semibold text-red-400 mb-1">What Will Break:</div>
+                  <div className="text-xs text-gray-300">{improvement.what_breaks}</div>
+                </div>
+              )}
+              {improvement.reproduction_steps && (
+                <div className="p-2 bg-red-900/20 border border-red-800/50 rounded">
+                  <div className="text-xs font-semibold text-red-400 mb-1">How to Reproduce:</div>
+                  <div className="text-xs text-gray-300 whitespace-pre-wrap">{improvement.reproduction_steps}</div>
+                </div>
+              )}
+              {improvement.suggested_fix && (
+                <div className="p-2 bg-green-900/20 border border-green-800/50 rounded">
+                  <div className="text-xs font-semibold text-green-400 mb-1">Suggested Fix:</div>
+                  <div className="text-xs text-gray-300 whitespace-pre-wrap">{improvement.suggested_fix}</div>
+                </div>
+              )}
             </div>
           )}
 
