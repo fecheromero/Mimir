@@ -182,7 +182,8 @@ async def execute_sync_test(
         # Use StatusEvaluator to determine status
         status, _ = StatusEvaluator.evaluate_execution(
             actions=actions,
-            errors=errors
+            errors=errors,
+            final_report=final_result
         )
 
         # Save results

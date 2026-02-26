@@ -123,6 +123,9 @@ class QaAgent:
         from browser_use_sdk import AsyncBrowserUse
 
         # Build task with credentials if provided
+        # Note: We ask the agent to begin reports with status keywords to aid automated status detection,
+        # but StatusEvaluator uses flexible pattern matching and fallback strategies to handle cases
+        # where the agent doesn't follow this format exactly.
         if self.email and self.password:
             task_with_context = f"""
 Go to {self.base_url} and sign in with the following credentials:
@@ -170,6 +173,9 @@ IMPORTANT: When you complete the test and generate your final report, begin the 
         Execute test using local browser-use with Playwright.
         """
         # Build task with credentials if provided
+        # Note: We ask the agent to begin reports with status keywords to aid automated status detection,
+        # but StatusEvaluator uses flexible pattern matching and fallback strategies to handle cases
+        # where the agent doesn't follow this format exactly.
         if self.email and self.password:
             task_with_context = f"""
 Go to {self.base_url} and sign in with the following credentials:

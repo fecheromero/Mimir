@@ -377,7 +377,8 @@ Please verify:
         status, status_text = StatusEvaluator.evaluate_execution(
             actions=actions,
             errors=errors,
-            hit_step_limit=hit_step_limit
+            hit_step_limit=hit_step_limit,
+            final_report=final_result
         )
 
         # Generate report text
