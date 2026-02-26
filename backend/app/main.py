@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
-from app.api.routes import test_cases, jobs, pr_reviews
+from app.api.routes import test_cases, jobs, pr_reviews, qa_run_history
 
 settings = get_settings()
 
@@ -83,3 +83,4 @@ async def debug_env():
 app.include_router(test_cases.router, prefix="/api/test-cases", tags=["test-cases"])
 app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(pr_reviews.router, prefix="/api/pr-reviews", tags=["pr-reviews"])
+app.include_router(qa_run_history.router, prefix="/api/qa-run-history", tags=["qa-run-history"])

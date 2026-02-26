@@ -99,7 +99,9 @@ export default function ResultsViewer({results, jobId}: ResultsViewerProps): JSX
                 null, // user_password
                 results.test_case_text || null, // test instructions
                 results.test_expectations || null, // success criteria
-                results.expected_outcome || null // expected outcome
+                results.expected_outcome || null, // expected outcome
+                false, // headless
+                jobId // parent_job_id for tracking replays
             )
 
             // Navigate to replay job

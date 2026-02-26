@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import JobResults from './pages/JobResults'
+import QARunHistory from './pages/QARunHistory'
 import PRReviewer from './pages/PRReviewer'
 import PRDetail from './pages/PRDetail'
 import Sidebar from './components/Sidebar'
@@ -14,6 +15,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/jobs/:jobId" element={<JobResults />} />
+            <Route path="/qa-run-history" element={<QARunHistory />} />
             <Route path="/pr-reviewer" element={<PRReviewer />} />
             <Route path="/pr-reviewer/:prId" element={<PRDetail />} />
           </Routes>

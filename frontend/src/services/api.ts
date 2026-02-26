@@ -87,7 +87,8 @@ export const testCasesApi = {
     testCaseText: string | null = null,
     testExpectations: string | null = null,
     expectedOutcome: string | null = null,
-    headless = false
+    headless = false,
+    parentJobId: string | null = null
   ) => {
     const response = await api.post('/api/test-cases/replay-actions', {
       actions,
@@ -99,6 +100,7 @@ export const testCasesApi = {
       expected_outcome: expectedOutcome,
       browser_mode: 'new',
       headless: headless,
+      parent_job_id: parentJobId,
     })
     return response.data
   },
@@ -131,6 +133,23 @@ interface Improvement {
   diff: string
   title: string
   confidence: string
+}
+
+export const qaRunHistoryApi = {
+  getAllRuns: async () => {
+    const response = await api.get('/api/qa-run-history/')
+    return response.data
+  },
+
+  getRun: async (runId: string) => {
+    const response = await api.get(`/api/qa-run-history/${runId}`)
+    return response.data
+  },
+
+  deleteRun: async (runId: string) => {
+    const response = await api.delete(`/api/qa-run-history/${runId}`)
+    return response.data
+  },
 }
 
 export const prReviewsApi = {
