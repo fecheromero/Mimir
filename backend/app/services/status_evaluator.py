@@ -64,7 +64,9 @@ class StatusEvaluator:
         if not report_text:
             return None
 
-        # Normalize text: first 500 chars, case-insensitive
+        # Strategy: Check first 150 chars for primary status (higher priority)
+        # Then check first 500 chars for secondary confirmation
+        first_line = report_text[:150].upper()
         report_start = report_text[:500].upper()
 
         # Pattern matching for common variations
@@ -81,15 +83,33 @@ class StatusEvaluator:
             r'\bFAIL\b',
         ]
 
-        # Check for failure keywords first (more specific)
+        # First, check the very beginning (first 150 chars) - highest priority
+        # Check for PASSED first in the beginning
+        for pattern in passed_patterns:
+            if re.search(pattern, first_line):
+                # Double-check it's not negated (e.g., "NOT PASSED")
+                if not re.search(r'\b(NOT|NO)\s+' + pattern, first_line):
+                    return JobStatus.PASSED.value, "Passed - Agent reported success"
+
+        # Then check for UNSUCCESSFUL in the beginning
         for pattern in unsuccessful_patterns:
-            if re.search(pattern, report_start):
+            if re.search(pattern, first_line):
                 return JobStatus.UNSUCCESSFUL.value, "Unsuccessful - Agent reported failure"
 
-        # Then check for success keywords
+        # Fallback: check broader context (first 500 chars) if nothing found in first line
+        # Only use this if no clear status in first 150 chars
         for pattern in passed_patterns:
             if re.search(pattern, report_start):
-                return JobStatus.PASSED.value, "Passed - Agent reported success"
+                # Be more conservative here - only count if appears early and not in description
+                match = re.search(pattern, report_start)
+                if match and match.start() < 150:  # Only if appears in first 150 chars
+                    return JobStatus.PASSED.value, "Passed - Agent reported success"
+
+        for pattern in unsuccessful_patterns:
+            if re.search(pattern, report_start):
+                match = re.search(pattern, report_start)
+                if match and match.start() < 150:  # Only if appears in first 150 chars
+                    return JobStatus.UNSUCCESSFUL.value, "Unsuccessful - Agent reported failure"
 
         return None
 
