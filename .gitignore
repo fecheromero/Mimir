@@ -67,3 +67,6 @@ logs/
 
 # Nested duplicates
 Mimir/
+
+# Config local de Claude Code (rutas y permisos de cada máquina)
+.claude/settings.local.json
